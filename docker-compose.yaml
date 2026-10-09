@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+
+  identity-db:
+    image: postgres:latest
+    container_name: identity_con
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+
+
+  inventory-db:
+    image: postgres:latest
+    container_name: inventory_con
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+
+
+  availability-db:
+    image: postgres:latest
+    container_name: availability_con
+    environment:
+      POSTGRES_DB: availability_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5434:5432"
