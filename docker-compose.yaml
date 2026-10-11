@@ -1,9 +1,6 @@
-version: '3.8'
-
 services:
-
   identity-db:
-    image: postgres:latest
+    image: postgres:16-alpine
     container_name: identity_con
     environment:
       POSTGRES_DB: identity_db
@@ -12,9 +9,8 @@ services:
     ports:
       - "5432:5432"
 
-
   inventory-db:
-    image: postgres:latest
+    image: postgres:16-alpine
     container_name: inventory_con
     environment:
       POSTGRES_DB: inventory_db
@@ -23,9 +19,8 @@ services:
     ports:
       - "5433:5432"
 
-
   availability-db:
-    image: postgres:latest
+    image: postgres:16-alpine
     container_name: availability_con
     environment:
       POSTGRES_DB: availability_db
@@ -33,3 +28,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5434:5432"
+
+  localstack:
+    image: localstack/localstack
+    container_name: localstack_con
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sns,sqs
+      - DEFAULT_REGION=eu-west-1
