@@ -1,3 +1,11 @@
 .env
 *.iml
 .idea/*
+
+# Compilados de Maven
+target/
+**/target/
+
+# IDEs y SO
+.vscode
+.DS_Store
