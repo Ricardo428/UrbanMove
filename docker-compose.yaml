@@ -25,7 +25,7 @@ services:
       - "4566:4566"
     environment:
       - SERVICES=s3,sns,sqs
-      - DEFAULT_REGION=eu-east-1
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./localstack-data}:/var/lib/localstack"
