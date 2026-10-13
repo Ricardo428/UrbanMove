@@ -6,6 +6,9 @@
 target/
 **/target/
 
+# Datos locales de LocalStack
+localstack-data/
+
 # IDEs y SO
 .vscode
 .DS_Store

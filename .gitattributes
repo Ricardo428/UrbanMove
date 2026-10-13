@@ -1,0 +1,3 @@
+* text=auto
+# Los scripts se ejecutan dentro de contenedores Linux: siempre con saltos de línea LF.
+*.sh text eol=lf

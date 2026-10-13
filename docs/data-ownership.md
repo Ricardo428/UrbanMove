@@ -1,6 +1,6 @@
 # Propiedad de Datos (Data Ownership)
 
-Para mantener el bajo acoplamiento, cada microservicio es dueño absoluto de su base de datos. Ningún servicio puede consultar la base de datos de otro directamente; deben comunicarse por API REST o eventos.
+Para mantener el bajo acoplamiento, cada microservicio es dueño absoluto de su base de datos. Ningún servicio puede consultar la base de datos de otro directamente; deben comunicarse por API REST o eventos. En local, todas las bases de datos viven en un mismo PostgreSQL pero son independientes (infra/postgres-init.sql).
 
 | Entidad Principal | Microservicio Dueño | Descripción del Dominio |
 | :--- | :--- | :--- |
@@ -14,3 +14,6 @@ Para mantener el bajo acoplamiento, cada microservicio es dueño absoluto de su 
 | **Histórico** | `history` | Registro inmutable de todo lo que ocurre. |
 | **Órdenes Mantenimiento** | `maintenance-orders`| Recargas, reparaciones y averías. |
 | **Órdenes Recolocación** | `relocation-orders`| Redistribución de flota. |
+| **Data Marts** | `analytics` | Tablas agregadas de flota, reservas, viajes y demanda (base `analytics_db`). Las construyen las Lambdas y `analytics` las consulta. |
+| **Data Lake** | Lambda de ingesta | Bucket S3 `urbanmove-datalake` con las capas `raw/`, `trusted/` y `curated/`. Ningún microservicio lo usa como base de datos transaccional. |
+| **Eventos pendientes y procesados** | Cada servicio, en su propia base | Tabla outbox con los eventos aún por publicar y tabla con los `eventId` ya consumidos. |
