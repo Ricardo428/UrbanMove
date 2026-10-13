@@ -1,4 +1,5 @@
 # Máquina de Estados del Recurso (Disponibilidad)
+
 **Availability es la única dueña del estado del recurso y valida toda transición.** Los demás servicios la solicitan, por API (reservar, iniciar viaje, mantenimiento, recolocación) o por evento (liberar tras cancelar, expirar o terminar un viaje). Una transición que no figura en esta tabla se rechaza con `409 Conflict`. Ver [adr-002-reservations.md](adr-002-reservations.md).
 
 | Estado Actual | Evento / Acción que provoca la transición | Nuevo Estado | Servicio que la provoca |

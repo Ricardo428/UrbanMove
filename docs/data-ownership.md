@@ -9,7 +9,7 @@ Para mantener el bajo acoplamiento, cada microservicio es dueño absoluto de su 
 | **Zonas** | `zones` | Áreas de operación y restricciones geográficas. |
 | **Recursos Físicos** | `inventory` | El catálogo de bicicletas/patinetes, fecha de compra y modelo. |
 | **Estado Operativo** | `availability` | Si un recurso está libre, reservado, etc., en tiempo real. |
-| **Reservas** | `reservations` | Ciclo de vida de una reserva (creada, confirmada, expirada). |
+| **Reservas** | `reservations` | Ciclo de vida de una reserva (pendiente, confirmada, cancelada, expirada). |
 | **Viajes** | `rides` | Duración del trayecto, zonas origen/destino y coste. |
 | **Histórico** | `history` | Registro inmutable de todo lo que ocurre. |
 | **Órdenes Mantenimiento** | `maintenance-orders`| Recargas, reparaciones y averías. |
