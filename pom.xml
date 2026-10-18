@@ -26,5 +26,6 @@
         <module>services/identity</module>
         <module>services/inventory</module>
         <module>services/availability</module>
+        <module>services/analytics</module>
     </modules>
 </project>

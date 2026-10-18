@@ -22,17 +22,26 @@ Sistema distribuido de movilidad urbana (bicicletas y patinetes eléctricos). Pr
    docker compose up -d
    ```
 
-3. Comprueba que está lista:
+3. Crea el bus de eventos y el Data Lake en LocalStack con Terraform (hace falta tener Terraform instalado):
+
+   ```bash
+   cd infra/terraform
+   terraform init
+   terraform apply -var-file=localstack.tfvars
+   cd ../..
+   ```
+
+   PostgreSQL crea una base de datos por microservicio al arrancar (`infra/postgres-init.sql`). El topic, las colas con su dead-letter queue y el bucket los crea Terraform (ver [infra/terraform/README.md](infra/terraform/README.md), que explica también cómo usarlo en AWS Academy).
+
+4. Comprueba que todo está listo:
 
    ```bash
    docker compose ps
-   docker exec urbanmove-localstack awslocal sns list-topics
+   terraform -chdir=infra/terraform output
    docker exec urbanmove-localstack awslocal sqs list-queues
    ```
 
-   PostgreSQL crea una base de datos por microservicio y LocalStack crea el tópico de eventos, las colas con su dead-letter queue y el bucket del Data Lake (`infra/postgres-init.sql` e `infra/init-aws.sh`).
-
-4. Opcional: levanta también los microservicios que ya tienen esqueleto (identity en el puerto 8081 e inventory en el 8082):
+5. Opcional: levanta también los microservicios que ya tienen esqueleto (identity en el puerto 8081 e inventory en el 8082):
 
    ```bash
    docker compose --profile apps up -d --build
@@ -40,10 +49,9 @@ Sistema distribuido de movilidad urbana (bicicletas y patinetes eléctricos). Pr
    curl http://localhost:8082/actuator/health
    ```
 
-Para empezar de cero, incluidas las bases de datos, usa `docker compose down -v`. Los scripts de inicio solo se ejecutan cuando se crea el volumen.
+Para empezar de cero, incluidas las bases de datos, usa `docker compose down -v`. El script de PostgreSQL solo se ejecuta cuando se crea el volumen. Tras un `down -v`, borra también `infra/terraform/terraform.tfstate` y vuelve a ejecutar `terraform apply`, porque LocalStack habrá perdido los recursos.
 
 LocalStack está fijado en la versión 4.12.0. Las versiones más recientes exigen una cuenta y un token (`LOCALSTACK_AUTH_TOKEN`).
-
 ## Compilar y probar
 
 ```bash

@@ -12,3 +12,11 @@ localstack-data/
 # IDEs y SO
 .vscode
 .DS_Store
+
+# Terraform: el estado puede contener datos de la cuenta de AWS
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!localstack.tfvars

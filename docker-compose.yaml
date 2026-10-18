@@ -30,7 +30,6 @@ services:
     volumes:
       - "${LOCALSTACK_VOLUME_DIR:-./localstack-data}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./infra/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://localhost:4566/_localstack/health > /dev/null"]
       interval: 10s
