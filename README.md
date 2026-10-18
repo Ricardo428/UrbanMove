@@ -59,7 +59,7 @@ mvn verify                                  # todos los módulos
 mvn -pl services/identity -am verify        # un solo servicio y lo que necesita
 ```
 
-El CI (`.github/workflows/ci.yml`) ejecuta `mvn verify` en cada push y pull request a `main`.
+El CI (`.github/workflows/ci.yml`) ejecuta `mvn verify` y comprueba el formato y la validez del Terraform en cada push y pull request a main.
 
 ## Estructura del repositorio
 
@@ -69,7 +69,7 @@ El CI (`.github/workflows/ci.yml`) ejecuta `mvn verify` en cada push y pull requ
 | `lambdas/` | Funciones Lambda (una por módulo) |
 | `libs/events-contract/` | Sobre y DTO de los eventos compartidos |
 | `apps/` | App de usuarios, app de mantenimiento y dashboard |
-| `infra/` | Scripts de inicialización de PostgreSQL y LocalStack |
+| `infra/` | Script de inicialización de PostgreSQL y terraform/ con la infraestructura de AWS (SNS, SQS y S3) |
 | `docs/` | Arquitectura, contratos de API y de eventos, estados y ADR |
 
 ## Documentación
@@ -80,3 +80,4 @@ El CI (`.github/workflows/ci.yml`) ejecuta `mvn verify` en cada push y pull requ
 - [Contratos de API](docs/apis/)
 - [ADR-001: stack tecnológico](docs/adr-001-stack.md)
 - [ADR-002: reservas atómicas](docs/adr-002-reservations.md)
+- [ADR-003: Terraform para la infraestructura](docs/adr-003-terraform.md)
