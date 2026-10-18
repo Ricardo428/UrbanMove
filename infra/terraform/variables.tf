@@ -28,6 +28,7 @@ variable "consumers" {
   default = [
     "availability",
     "history",
+    "reservations",
     "datalake-ingest",
     "maintenance-orders",
     "relocation-orders",
