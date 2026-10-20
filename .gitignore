@@ -20,3 +20,4 @@ localstack-data/
 crash.log
 *.tfvars
 !localstack.tfvars
+.claude
