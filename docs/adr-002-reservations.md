@@ -1,6 +1,6 @@
 # ADR 002: Reserva atómica en Availability y liberación por eventos
 
-**Estado:** propuesta, pendiente de confirmar por los dos miembros del grupo.
+**Estado:** Aceptada
 
 **Problema:**
 Dos usuarios pueden intentar reservar o iniciar el viaje con el mismo recurso a la vez. Si Availability se enterase de la reserva por un evento (`VehicleReserved`), habría un intervalo en el que el recurso sigue figurando como `AVAILABLE` y las dos peticiones tendrían éxito. Hay que garantizar que un recurso no se reserve dos veces, y a la vez no bloquear el sistema si un servicio falla.
