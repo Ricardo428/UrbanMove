@@ -50,6 +50,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/identity_db
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-urbanmove}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-urbanmove}
+      # Vienen del .env. Sin JWT_SECRET (mínimo 32 caracteres) identity no arranca.
+      URBANMOVE_JWT_SECRET: ${JWT_SECRET:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy

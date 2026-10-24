@@ -4,6 +4,10 @@ Este servicio gestiona la autenticación, sesiones y roles (usuarios finales, ma
 
 **Validación del token:** Identity firma los JWT. Los demás servicios comprueban la firma en local con la clave de firma, que se configura por variable de entorno y nunca se sube al repositorio. El endpoint `validate` queda como respaldo, para que la caída de Identity no tire el resto del sistema.
 
+**Primer administrador:** como solo un `ADMIN` puede crear otros `ADMIN` o `MAINTENANCE`, identity crea un `ADMIN` inicial al arrancar si existen las variables de entorno `BOOTSTRAP_ADMIN_EMAIL` y `BOOTSTRAP_ADMIN_PASSWORD` y ese usuario no existe. Esas credenciales nunca se suben al repositorio.
+
+**Rutas públicas:** `register`, `login` y `validate` no exigen token. `validate` comprueba el token a mano y responde con su propio cuerpo.
+
 **Formato de error** (el mismo en todos los servicios):
 ```json
 {

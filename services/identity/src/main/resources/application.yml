@@ -4,9 +4,32 @@ server:
 spring:
   application:
     name: identity
+  datasource:
+    url: jdbc:postgresql://localhost:5432/identity_db
+    username: ${DB_USER:urbanmove}
+    password: ${DB_PASSWORD:urbanmove}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+
+urbanmove:
+  security:
+    # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
+    jwt-secret: ${URBANMOVE_JWT_SECRET:}
+    jwt-expiration-seconds: 3600
+    public-paths:
+      - /api/v1/identity/register
+      - /api/v1/identity/login
+      - /api/v1/identity/validate
+  identity:
+    # Primer ADMIN: se crea al arrancar si no existe. Sin estas variables no se crea ninguno.
+    bootstrap-admin:
+      email: ${BOOTSTRAP_ADMIN_EMAIL:}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:}
