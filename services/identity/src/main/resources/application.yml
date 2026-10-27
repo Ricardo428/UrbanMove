@@ -28,6 +28,11 @@ urbanmove:
       - /api/v1/identity/register
       - /api/v1/identity/login
       - /api/v1/identity/validate
+  # Bus de eventos (libs/messaging). Sin topic, los eventos se quedan en la outbox hasta que se configure.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
   identity:
     # Primer ADMIN: se crea al arrancar si no existe. Sin estas variables no se crea ninguno.
     bootstrap-admin:

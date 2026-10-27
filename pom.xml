@@ -25,6 +25,8 @@
 
     <modules>
         <module>libs/common</module>
+        <module>libs/events-contract</module>
+        <module>libs/messaging</module>
         <module>services/identity</module>
         <module>services/inventory</module>
         <module>services/availability</module>

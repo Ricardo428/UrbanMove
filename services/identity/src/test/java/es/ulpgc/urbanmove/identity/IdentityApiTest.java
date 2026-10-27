@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 class IdentityApiTest extends AbstractIntegrationTest {
@@ -22,6 +23,9 @@ class IdentityApiTest extends AbstractIntegrationTest {
     @Autowired
     private TestRestTemplate rest;
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
     // --- registro ---
 
     @Test
@@ -31,6 +35,39 @@ class IdentityApiTest extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().get("role")).isEqualTo("USER");
         assertThat((String) response.getBody().get("id")).startsWith("u-");
+    }
+
+    @Test
+    void registerLeavesUserRegisteredInTheOutboxWithTheRequestCorrelationId() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Correlation-Id", "c-registro1");
+        Map<String, Object> body = Map.of("email", uniqueEmail(), "password", PASSWORD);
+
+        ResponseEntity<Map> response = rest.exchange(BASE + "/register", HttpMethod.POST,
+                new HttpEntity<>(body, headers), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        Map<String, Object> event = jdbc.queryForMap("""
+                        SELECT event_type, body ->> 'source' AS source, body ->> 'correlationId' AS correlation,
+                               body -> 'payload' ->> 'role' AS role
+                          FROM outbox_events WHERE body -> 'payload' ->> 'userId' = ?
+                        """,
+                response.getBody().get("id"));
+        assertThat(event).containsEntry("event_type", "UserRegistered")
+                .containsEntry("source", "identity-service")
+                .containsEntry("correlation", "c-registro1")
+                .containsEntry("role", "USER");
+    }
+
+    @Test
+    void aRejectedRegistrationPublishesNothing() {
+        String email = uniqueEmail();
+        register(email, PASSWORD);
+        Integer before = jdbc.queryForObject("SELECT count(*) FROM outbox_events", Integer.class);
+
+        assertThat(register(email, PASSWORD).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_events", Integer.class)).isEqualTo(before);
     }
 
     @Test

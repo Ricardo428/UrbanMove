@@ -83,7 +83,8 @@ El CI (`.github/workflows/ci.yml`) ejecuta `mvn verify` y comprueba el formato y
 | `services/` | Un módulo Maven por microservicio, cada uno con su propia base de datos |
 | `lambdas/` | Funciones Lambda (una por módulo) |
 | `libs/common/` | Código compartido por los servicios: validación del JWT, formato de error y `X-Correlation-Id` |
-| `libs/events-contract/` | Sobre y DTO de los eventos compartidos (aún sin código) |
+| `libs/events-contract/` | Sobre y payloads de los eventos, compartidos por servicios y Lambdas |
+| `libs/messaging/` | Outbox, publicación en SNS y consumo idempotente desde SQS para los servicios |
 | `apps/` | App de usuarios, app de mantenimiento y dashboard |
 | `infra/` | Script de inicialización de PostgreSQL y terraform/ con la infraestructura de AWS (SNS, SQS y S3) |
 | `docs/` | Arquitectura, contratos de API y de eventos, estados y ADR |
@@ -98,3 +99,4 @@ El CI (`.github/workflows/ci.yml`) ejecuta `mvn verify` y comprueba el formato y
 - [ADR-002: reservas atómicas](docs/adr-002-reservations.md)
 - [ADR-003: Terraform para la infraestructura](docs/adr-003-terraform.md)
 - [ADR-004: módulo común, JWT y pruebas con Testcontainers](docs/adr-004-modulo-comun-jwt-pruebas.md)
+- [ADR-005: outbox transaccional y consumidores idempotentes](docs/adr-005-outbox-consumidores.md)

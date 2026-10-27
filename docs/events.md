@@ -32,10 +32,14 @@ Las transiciones de estado del recurso que no pasan por un evento (reservar, ini
 
 ## Reglas para productores y consumidores
 
-*   **Idempotencia:** el bus entrega al menos una vez, así que un evento puede llegar duplicado. Cada consumidor guarda los `eventId` que ya procesó y descarta los repetidos.
+El contrato está en código en `libs/events-contract` (`EventEnvelope`, `EventType` y un record por payload) y lo usan servicios y Lambdas. Un test comprueba que cada ejemplo de esta página coincide campo a campo con su record. Los servicios Spring publican y consumen con `libs/messaging` (ver [ADR-005](adr-005-outbox-consumidores.md)).
+
+*   **Idempotencia:** el bus entrega al menos una vez, así que un evento puede llegar duplicado. Cada consumidor guarda los `eventId` que ya procesó (tabla `processed_events`, en la misma transacción que el efecto del evento) y descarta los repetidos.
 *   **Orden:** no está garantizado. Un consumidor no debe depender de recibir los eventos en el orden en que se emitieron; usa `timestamp` y el estado actual.
-*   **Persistencia antes de publicar:** el productor guarda el evento en su propia base de datos (tabla outbox) en la misma transacción que el cambio de estado, y un proceso aparte lo publica.
-*   **Fallos:** tras 3 intentos fallidos el mensaje pasa a la dead-letter queue de su cola.
+*   **Persistencia antes de publicar:** el productor guarda el evento en su propia base de datos (tabla `outbox_events`) en la misma transacción que el cambio de estado, y un proceso aparte lo publica en SNS. Si SNS no responde, el evento espera en la outbox y se reintenta.
+*   **Fallos:** si el consumidor falla, el mensaje no se borra y SQS lo vuelve a entregar. Tras 3 intentos fallidos pasa a la dead-letter queue de su cola.
+*   **Evolución:** los consumidores ignoran los campos que no conocen, así que añadir un campo no rompe a nadie. Quitar o cambiar un campo es un cambio incompatible y sube `version`.
+*   **Correlación:** el `correlationId` es el `X-Correlation-Id` de la petición que originó el evento. Un consumidor lo pone en sus logs mientras procesa el evento, y los eventos que publique en ese momento lo heredan.
 *   **Batería simulada:** hasta que exista un servicio de telemetría, `rides` calcula `batteryLevelPercent` al finalizar el viaje y lo incluye en `RideFinished`.
 
 ## Ejemplos de payload

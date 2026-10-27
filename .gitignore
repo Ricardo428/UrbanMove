@@ -21,3 +21,4 @@ crash.log
 *.tfvars
 !localstack.tfvars
 .claude
+claude
