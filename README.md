@@ -41,13 +41,14 @@ Sistema distribuido de movilidad urbana (bicicletas y patinetes eléctricos). Pr
    docker exec urbanmove-localstack awslocal sqs list-queues
    ```
 
-5. Opcional: levanta también los microservicios que ya existen (identity en el puerto 8081, inventory en el 8082 y availability en el 8083):
+5. Opcional: levanta también los microservicios que ya existen (identity en el puerto 8081, inventory en el 8082, availability en el 8083 y reservations en el 8084):
 
    ```bash
    docker compose --profile apps up -d --build
    curl http://localhost:8081/actuator/health
    curl http://localhost:8082/actuator/health
    curl http://localhost:8083/actuator/health
+   curl http://localhost:8084/actuator/health
    ```
 
    Identity necesita `JWT_SECRET` (al menos 32 caracteres) en el `.env`, que ya trae un valor de desarrollo en `.env.example`. Si defines también `BOOTSTRAP_ADMIN_EMAIL` y `BOOTSTRAP_ADMIN_PASSWORD`, identity crea ese usuario ADMIN al arrancar, y con él se dan de alta los usuarios de mantenimiento y otros administradores.

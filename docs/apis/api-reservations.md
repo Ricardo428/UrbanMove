@@ -6,7 +6,7 @@ Gestiona el ciclo de vida temporal de una reserva de un vehículo. Todas las pet
 
 **Plazos (configurables):** una reserva `PENDING` caduca a los 5 minutos si no se confirma. Al confirmarla pasa a `CONFIRMED` y dispone de 15 minutos desde la confirmación para iniciar el viaje. La caducidad la ejecuta una Lambda con el endpoint de expiración (sección 5).
 
-**Reserva atómica:** para no reservar dos veces el mismo vehículo, Reservations llama de forma síncrona a Availability. Ver [adr-002-reservations.md](../adr-002-reservations.md).
+**Reserva atómica:** para no reservar dos veces el mismo vehículo, Reservations llama de forma síncrona a Availability con un token de servicio. Ver [adr-002-reservations.md](../adr-002-reservations.md) y [adr-006-token-de-servicio.md](../adr-006-token-de-servicio.md).
 
 **Formato de error:**
 ```json
@@ -44,7 +44,7 @@ Gestiona el ciclo de vida temporal de una reserva de un vehículo. Todas las pet
 | `400 Bad Request` | Falta `vehicleId`. |
 | `401 Unauthorized` | Falta el token o no es válido. |
 | `403 Forbidden` | El token no es de un usuario con rol `USER`. |
-| `404 Not Found` | El vehículo no existe. |
+| `404 Not Found` | El vehículo no existe. La reserva queda como `REJECTED`. |
 | `409 Conflict` | El vehículo no está disponible. La reserva queda como `REJECTED`. |
 | `503 Service Unavailable` | Availability no responde a tiempo. La reserva queda `PENDING` y caduca sola. |
 

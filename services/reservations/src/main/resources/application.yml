@@ -1,0 +1,37 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: reservations
+  datasource:
+    url: jdbc:postgresql://localhost:5432/reservations_db
+    username: ${DB_USER:urbanmove}
+    password: ${DB_PASSWORD:urbanmove}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+urbanmove:
+  security:
+    # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
+    # Con ella se validan los tokens de los usuarios y se firma el token de servicio para availability (ADR-006).
+    jwt-secret: ${URBANMOVE_JWT_SECRET:}
+    jwt-expiration-seconds: 3600
+  # Bus de eventos (libs/messaging): publica VehicleReserved, ReservationCancelled y ReservationExpired; consume RideStarted.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    queue-url: ${URBANMOVE_EVENTS_QUEUE_URL:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
+  reservations:
+    # Plazos de caducidad: sin confirmar, y desde la confirmación hasta iniciar el viaje.
+    pending-ttl: ${RESERVATION_PENDING_TTL:5m}
+    confirmed-ttl: ${RESERVATION_CONFIRMED_TTL:15m}
+    availability:
+      url: ${AVAILABILITY_URL:http://localhost:8083}
+      # Si availability no responde en este tiempo, la reserva queda PENDING y se responde 503.
+      timeout: 3s
