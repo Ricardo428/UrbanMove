@@ -77,6 +77,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory_db
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-urbanmove}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-urbanmove}
+      URBANMOVE_JWT_SECRET: ${JWT_SECRET:-}
+      # Publica VehiclePurchased al dar de alta un recurso: es la única forma de que availability lo conozca.
+      URBANMOVE_EVENTS_TOPIC_ARN: arn:aws:sns:${AWS_REGION:-us-east-1}:000000000000:urbanmove-events
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
     depends_on:
       postgres:
         condition: service_healthy
