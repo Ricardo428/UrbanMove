@@ -41,12 +41,13 @@ Sistema distribuido de movilidad urbana (bicicletas y patinetes eléctricos). Pr
    docker exec urbanmove-localstack awslocal sqs list-queues
    ```
 
-5. Opcional: levanta también los microservicios que ya existen (identity en el puerto 8081 e inventory en el 8082):
+5. Opcional: levanta también los microservicios que ya existen (identity en el puerto 8081, inventory en el 8082 y availability en el 8083):
 
    ```bash
    docker compose --profile apps up -d --build
    curl http://localhost:8081/actuator/health
    curl http://localhost:8082/actuator/health
+   curl http://localhost:8083/actuator/health
    ```
 
    Identity necesita `JWT_SECRET` (al menos 32 caracteres) en el `.env`, que ya trae un valor de desarrollo en `.env.example`. Si defines también `BOOTSTRAP_ADMIN_EMAIL` y `BOOTSTRAP_ADMIN_PASSWORD`, identity crea ese usuario ADMIN al arrancar, y con él se dan de alta los usuarios de mantenimiento y otros administradores.
@@ -67,14 +68,17 @@ Para empezar de cero, incluidas las bases de datos, usa `docker compose down -v`
 LocalStack está fijado en la versión 4.12.0. Las versiones más recientes exigen una cuenta y un token (`LOCALSTACK_AUTH_TOKEN`).
 ## Compilar y probar
 
+No hace falta instalar Maven: el Maven Wrapper (`mvnw`) descarga la primera vez la versión fijada en `.mvn/wrapper/maven-wrapper.properties`. Se necesita Java 21 (el mismo que el CI).
+
 ```bash
-mvn verify                                  # todos los módulos
-mvn -pl services/identity -am verify        # un solo servicio y lo que necesita
+./mvnw verify                               # todos los módulos (Git Bash, Linux o macOS)
+./mvnw -pl services/identity -am verify     # un solo servicio y lo que necesita
+mvnw.cmd verify                             # lo mismo en PowerShell o CMD
 ```
 
-Las pruebas de los servicios con base de datos usan Testcontainers, así que necesitan Docker en marcha (también en el CI). Para arrancar un servicio fuera de Docker, exporta antes `URBANMOVE_JWT_SECRET` con la misma clave del `.env`.
+Las pruebas de los servicios con base de datos usan Testcontainers, así que necesitan Docker Desktop abierto (también en el CI). Para arrancar un servicio fuera de Docker, exporta antes `URBANMOVE_JWT_SECRET` con la misma clave del `.env`.
 
-El CI (`.github/workflows/ci.yml`) ejecuta `mvn verify` y comprueba el formato y la validez del Terraform en cada push y pull request a main.
+El CI (`.github/workflows/ci.yml`) ejecuta `./mvnw verify` y comprueba el formato y la validez del Terraform en cada push y pull request a main.
 
 ## Estructura del repositorio
 

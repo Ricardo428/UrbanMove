@@ -158,6 +158,8 @@ Todas las peticiones llevan `Authorization: Bearer <token_jwt>`.
 | `404 Not Found` | El recurso no existe. |
 | `409 Conflict` | La transición no está permitida desde el estado actual (por ejemplo, `RETIRED` desde `IN_USE`). |
 
+Pedir el estado en el que ya está el recurso (y la misma zona) responde `200` sin cambiar nada, para que un reintento no dé un `409` falso.
+
 **Evento emitido:** ninguno.
 
 ## Eventos que consume

@@ -1,0 +1,31 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: availability
+  datasource:
+    url: jdbc:postgresql://localhost:5432/availability_db
+    username: ${DB_USER:urbanmove}
+    password: ${DB_PASSWORD:urbanmove}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+urbanmove:
+  security:
+    # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
+    jwt-secret: ${URBANMOVE_JWT_SECRET:}
+    jwt-expiration-seconds: 3600
+  # Bus de eventos (libs/messaging). Sin cola, availability no recibe VehiclePurchased ni las liberaciones.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    queue-url: ${URBANMOVE_EVENTS_QUEUE_URL:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
+  availability:
+    # Por debajo de este porcentaje, un viaje que termina deja el recurso en LOW_BATTERY.
+    low-battery-threshold: ${LOW_BATTERY_THRESHOLD:20}
