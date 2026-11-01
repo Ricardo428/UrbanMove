@@ -31,6 +31,8 @@
         <module>services/inventory</module>
         <module>services/availability</module>
         <module>services/reservations</module>
+        <module>services/zones</module>
+        <module>services/profiles</module>
         <module>services/analytics</module>
     </modules>
 </project>
