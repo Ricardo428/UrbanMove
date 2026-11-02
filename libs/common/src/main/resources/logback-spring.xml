@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Configuración de logs común a todos los servicios (todos dependen de "common").
+  Añade el correlationId del MDC detrás del nivel: "INFO [c-1a2b3c4d] ...".
+  Lo ponen CorrelationIdFilter (peticiones HTTP) y EventConsumer (eventos recibidos);
+  fuera de ellos (arranque, scheduler del outbox) se imprime "sin-id".
+-->
+<configuration>
+    <!-- Debe ir antes del include: base.xml solo usa su valor por defecto (%5p) si no está definida. -->
+    <property name="LOG_LEVEL_PATTERN" value="%5p [%X{correlationId:-sin-id}]"/>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+</configuration>
