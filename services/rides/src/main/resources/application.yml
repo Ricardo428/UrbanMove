@@ -1,0 +1,44 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: rides
+  datasource:
+    url: jdbc:postgresql://localhost:5432/rides_db
+    username: ${DB_USER:urbanmove}
+    password: ${DB_PASSWORD:urbanmove}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+urbanmove:
+  security:
+    # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
+    jwt-secret: ${URBANMOVE_JWT_SECRET:}
+    jwt-expiration-seconds: 3600
+  # Bus de eventos (libs/messaging): publica RideStarted y RideFinished. No consume ningún evento.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
+  rides:
+    availability:
+      url: ${AVAILABILITY_URL:http://localhost:8083}
+      # Si availability no responde en este tiempo, el viaje queda STARTING y se responde 503.
+      timeout: 3s
+    reservations:
+      url: ${RESERVATIONS_URL:http://localhost:8084}
+      # Si reservations no responde en este tiempo, no se llega a guardar el viaje y se responde 503.
+      timeout: 3s
+    zones:
+      url: ${ZONES_URL:http://localhost:8085}
+      # Si zones no responde en este tiempo, el viaje se finaliza igualmente con zoneValidated: false.
+      timeout: 3s
+    tariff:
+      cost-per-minute: ${RIDE_COST_PER_MINUTE:0.15}
+      # Batería simulada (docs/events.md): 100 - minutos x consumo. Para la demo se puede subir a 50.
+      battery-drain-per-minute: ${BATTERY_DRAIN_PER_MINUTE:1}

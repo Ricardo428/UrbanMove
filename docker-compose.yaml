@@ -141,6 +141,41 @@ services:
       availability:
         condition: service_started
 
+  rides:
+    profiles: ["apps"]
+    container_name: urbanmove-rides
+    build:
+      context: .
+      dockerfile: services/rides/Dockerfile
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/rides_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-urbanmove}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-urbanmove}
+      # Con el mismo secreto valida a los usuarios y firma su token de servicio para los otros tres (ADR-006).
+      URBANMOVE_JWT_SECRET: ${JWT_SECRET:-}
+      AVAILABILITY_URL: http://availability:8083
+      RESERVATIONS_URL: http://reservations:8084
+      ZONES_URL: http://zones:8085
+      # Para la demo de batería baja: BATTERY_DRAIN_PER_MINUTE=50 en el .env.
+      BATTERY_DRAIN_PER_MINUTE: ${BATTERY_DRAIN_PER_MINUTE:-1}
+      # Publica RideStarted y RideFinished; no consume eventos, así que no tiene cola.
+      URBANMOVE_EVENTS_TOPIC_ARN: arn:aws:sns:${AWS_REGION:-us-east-1}:000000000000:urbanmove-events
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      availability:
+        condition: service_started
+      reservations:
+        condition: service_started
+      zones:
+        condition: service_started
+
   zones:
     profiles: ["apps"]
     container_name: urbanmove-zones

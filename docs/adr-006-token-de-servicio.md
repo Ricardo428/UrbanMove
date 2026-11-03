@@ -1,6 +1,6 @@
 # ADR 006: Token de servicio para las llamadas internas
 
-**Estado:** aceptada. Implementada en reservations (`AvailabilityClient`); rides la usará para `start`.
+**Estado:** aceptada. Implementada en reservations (`svc-reservations` → availability) y rides (`svc-rides` → availability, reservations y zones).
 
 **Problema:**
 Reservations y Rides llaman de forma síncrona a Availability (`POST .../reserve` y `.../start`, ver [ADR-002](adr-002-reservations.md)). Esos endpoints exigen el rol `ADMIN` para que un usuario no pueda reservar un vehículo saltándose Reservations. Hace falta decidir con qué token se autentica un servicio cuando llama a otro.
@@ -14,6 +14,8 @@ Reservations y Rides llaman de forma síncrona a Availability (`POST .../reserve
 *   Cada llamada interna lleva un token recién firmado con `JwtTokenService.generate("svc-<servicio>", Role.ADMIN)`. No se guarda ni se reutiliza.
 *   El identificador `svc-<servicio>` aparece como `userId` en los logs del servicio llamado, así que se distingue quién hizo la llamada.
 *   La llamada propaga el `X-Correlation-Id` de la petición original y tiene un timeout explícito (3 s en reservations).
+*   Todos los clientes se construyen con `ServiceRestClients` (`libs/common`), que fija el timeout y añade, con un interceptor, el token de servicio y el `X-Correlation-Id` a cada petición. Ningún cliente puede olvidarlos.
+*   El token `ADMIN` de rides le permite leer cualquier reserva. Las reglas sobre quién puede usarla las aplica rides con el `userId` del token del usuario, que no se puede falsificar.
 
 **Consecuencias:**
 *   *Positivas:* no hay credenciales nuevas ni dependencia de Identity en el camino de la reserva. Es una sola línea en el cliente y se prueba sin infraestructura.

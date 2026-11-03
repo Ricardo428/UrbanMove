@@ -24,6 +24,14 @@ Gestiona el uso efectivo de los recursos. Todas las peticiones llevan `Authoriza
 ```
 `reservationId` es opcional: se omite si el usuario inicia el viaje sin reserva.
 
+**Orden de los pasos** (ver [adr-002-reservations.md](../adr-002-reservations.md)):
+1. Si hay `reservationId`, Rides consulta la reserva en Reservations con su token de servicio y comprueba que es del usuario, que es de ese vehículo y que está `PENDING` o `CONFIRMED`. Si algo falla, responde con error sin guardar nada.
+2. Guarda el viaje en `STARTING`.
+3. Pide a Availability que ponga el vehículo `IN_USE`.
+4. Si Availability acepta, el viaje pasa a `IN_PROGRESS` y se publica `RideStarted` en la misma transacción. Si responde 409 o 404, el viaje queda `REJECTED`. Si no responde, el viaje queda `STARTING` y se responde 503.
+
+**Reintento tras un 503:** si el usuario vuelve a iniciar el viaje con el mismo vehículo y la misma reserva, Rides reutiliza el viaje `STARTING` y repite la llamada con el mismo `rideId`. Como `start` es idempotente por `rideId`, no se crea un segundo viaje.
+
 **Respuesta Exitosa (201 Created):**
 
 ```json
@@ -44,8 +52,8 @@ Gestiona el uso efectivo de los recursos. Todas las peticiones llevan `Authoriza
 | `401 Unauthorized` | Falta el token o no es válido. |
 | `403 Forbidden` | El token no es de un `USER`, o la reserva pertenece a otro usuario. |
 | `404 Not Found` | El vehículo o la reserva no existen. |
-| `409 Conflict` | El vehículo no está disponible, o está reservado por otro usuario. |
-| `503 Service Unavailable` | Availability no responde a tiempo. |
+| `409 Conflict` | El vehículo no está disponible o está reservado por otro usuario; la reserva es de otro vehículo; o la reserva ya no está activa. |
+| `503 Service Unavailable` | Availability o Reservations no responden a tiempo. |
 
 **Evento emitido:** `RideStarted`.
 
@@ -76,6 +84,8 @@ Gestiona el uso efectivo de los recursos. Todas las peticiones llevan `Authoriza
 }
 ```
 
+**Cálculos:** `durationMinutes` cuenta cada minuto empezado (mínimo 1). `preliminaryCost` = minutos × 0,15 € (configurable con `RIDE_COST_PER_MINUTE`). Hasta que exista telemetría, `batteryLevelPercent` (en `RideFinished`) = 100 − minutos × `BATTERY_DRAIN_PER_MINUTE` (1 por defecto), con un mínimo de 0.
+
 **Errores:**
 
 | Código | Cuándo |
@@ -84,7 +94,7 @@ Gestiona el uso efectivo de los recursos. Todas las peticiones llevan `Authoriza
 | `401 Unauthorized` | Falta el token o no es válido. |
 | `403 Forbidden` | El viaje es de otro usuario. |
 | `404 Not Found` | El viaje o la zona de destino no existen. |
-| `409 Conflict` | El viaje ya estaba finalizado. |
+| `409 Conflict` | El viaje ya estaba finalizado, o no está en curso (`STARTING` o `REJECTED`). |
 | `422 Unprocessable Entity` | La zona de destino existe pero no permite aparcar. |
 
 **Evento emitido:** `RideFinished`.
@@ -104,6 +114,7 @@ Gestiona el uso efectivo de los recursos. Todas las peticiones llevan `Authoriza
   "status": "IN_PROGRESS"
 }
 ```
+`status` puede ser `STARTING` (esperando a Availability), `IN_PROGRESS`, `COMPLETED` o `REJECTED` (Availability no aceptó el vehículo).
 
 **Errores:**
 
