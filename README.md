@@ -66,6 +66,8 @@ Sistema distribuido de movilidad urbana (bicicletas y patinetes eléctricos). Pr
      -d '{"email":"usuario@example.com","password":"Contrasena123"}'
    ```
 
+6. Opcional: despliega la Lambda que caduca las reservas vencidas cada minuto. Necesita los servicios del paso anterior en marcha. Está explicada en [infra/terraform/README.md](infra/terraform/README.md#lambda-de-expiración-opcional).
+
 Para empezar de cero, incluidas las bases de datos, usa `docker compose down -v`. El script de PostgreSQL solo se ejecuta cuando se crea el volumen. Tras un `down -v`, borra también `infra/terraform/terraform.tfstate` y vuelve a ejecutar `terraform apply`, porque LocalStack habrá perdido los recursos.
 
 LocalStack está fijado en la versión 4.12.0. Las versiones más recientes exigen una cuenta y un token (`LOCALSTACK_AUTH_TOKEN`).

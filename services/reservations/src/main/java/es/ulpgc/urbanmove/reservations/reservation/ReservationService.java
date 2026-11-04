@@ -13,6 +13,7 @@ import es.ulpgc.urbanmove.reservations.availability.ReserveOutcome;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class ReservationService {
 
     private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
+
+    /** Máximo de reservas vencidas que se devuelven por consulta; la Lambda vuelve a preguntar cada minuto. */
+    static final int OVERDUE_BATCH = 100;
 
     private final ReservationRepository reservations;
     private final AvailabilityClient availability;
@@ -114,6 +118,13 @@ public class ReservationService {
                     reservation.userId(), clock.instant()));
             return get(reservation.id());
         });
+    }
+
+    /** Identificadores de las reservas activas que ya han vencido. Lo consulta la Lambda de expiración. */
+    public List<String> overdueIds() {
+        return reservations.findOverdueIds(clock.instant(), OVERDUE_BATCH).stream()
+                .map(Reservation::publicIdOf)
+                .toList();
     }
 
     /** Lo invoca la Lambda de expiración. Repetirlo sobre una reserva ya EXPIRED no vuelve a publicar el evento. */

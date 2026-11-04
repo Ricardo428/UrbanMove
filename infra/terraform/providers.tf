@@ -13,8 +13,10 @@ provider "aws" {
   s3_use_path_style           = var.use_localstack
 
   endpoints {
-    s3  = var.use_localstack ? var.localstack_endpoint : null
-    sns = var.use_localstack ? var.localstack_endpoint : null
-    sqs = var.use_localstack ? var.localstack_endpoint : null
+    s3     = var.use_localstack ? var.localstack_endpoint : null
+    sns    = var.use_localstack ? var.localstack_endpoint : null
+    sqs    = var.use_localstack ? var.localstack_endpoint : null
+    lambda = var.use_localstack ? var.localstack_endpoint : null
+    events = var.use_localstack ? var.localstack_endpoint : null
   }
 }

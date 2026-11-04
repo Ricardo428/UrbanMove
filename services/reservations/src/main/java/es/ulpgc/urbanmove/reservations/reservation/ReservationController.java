@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -60,6 +61,13 @@ public class ReservationController {
                 "Reserva cancelada. El vehículo vuelve a estar disponible.");
     }
 
+    /** Interno: las reservas vencidas que la Lambda de expiración debe cerrar. */
+    @GetMapping("/overdue")
+    @PreAuthorize("hasRole('ADMIN')")
+    public OverdueResponse overdue() {
+        return new OverdueResponse(reservations.overdueIds());
+    }
+
     /** Interno: lo llama la Lambda de expiración con su cuenta de servicio ADMIN. */
     @PostMapping("/{reservationId}/expire")
     @PreAuthorize("hasRole('ADMIN')")
@@ -84,6 +92,9 @@ public class ReservationController {
     }
 
     public record CancelledResponse(String reservationId, ReservationStatus status, String message) {
+    }
+
+    public record OverdueResponse(List<String> reservationIds) {
     }
 
     public record ExpiredResponse(String reservationId, ReservationStatus status, Instant expiredAt) {

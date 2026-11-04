@@ -196,6 +196,46 @@ class ReservationApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void overdueListsOnlyActiveReservationsPastTheirDeadline() {
+        String owner = newUser();
+        String overdue = reservationOf(owner);
+        String cancelled = reservationOf(owner);
+        action(cancelled, "cancel", owner, Role.USER);
+        clock.advance(Duration.ofMinutes(5));
+        String fresh = reservationOf(owner);
+
+        ResponseEntity<Map> response = rest.exchange(BASE + "/overdue", HttpMethod.GET,
+                as("svc-expiration", Role.ADMIN, null), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((List<String>) response.getBody().get("reservationIds"))
+                .contains(overdue)
+                .doesNotContain(cancelled, fresh);
+    }
+
+    @Test
+    void overdueOnceExpiredNoLongerAppearsInTheList() {
+        String reservationId = reservationOf(newUser());
+        clock.advance(Duration.ofMinutes(5));
+        action(reservationId, "expire", "svc-expiration", Role.ADMIN);
+
+        ResponseEntity<Map> response = rest.exchange(BASE + "/overdue", HttpMethod.GET,
+                as("svc-expiration", Role.ADMIN, null), Map.class);
+
+        assertThat((List<String>) response.getBody().get("reservationIds")).doesNotContain(reservationId);
+    }
+
+    @Test
+    void overdueIsOnlyForAdmins() {
+        ResponseEntity<Map> asUser = rest.exchange(BASE + "/overdue", HttpMethod.GET,
+                as(newUser(), Role.USER, null), Map.class);
+        ResponseEntity<Map> withoutToken = rest.getForEntity(BASE + "/overdue", Map.class);
+
+        assertThat(asUser.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(withoutToken.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     void expireErrorsFollowTheContract() {
         String owner = newUser();
         String notYet = reservationOf(owner);

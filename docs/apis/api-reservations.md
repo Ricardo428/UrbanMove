@@ -125,9 +125,29 @@ Gestiona el ciclo de vida temporal de una reserva de un vehículo. Todas las pet
 
 **Evento emitido:** `ReservationCancelled`.
 
-## 5. Expirar Reserva (Uso interno de la Lambda de expiración)
+## 5. Listar Reservas Vencidas (Uso interno de la Lambda de expiración)
+**Endpoint:** `GET /api/v1/reservations/overdue` (rol `ADMIN`, cuenta de servicio de la Lambda) \
+**Descripción:** Devuelve los identificadores de las reservas `PENDING` o `CONFIRMED` cuyo plazo ya ha vencido, las más antiguas primero y hasta un máximo de 100 por consulta. La Lambda no lee la base de datos de Reservations, que es suya (ver [data-ownership.md](../data-ownership.md)): lo pregunta por aquí. Si hay más de 100, el resto se devuelve en la consulta del minuto siguiente.
+
+**Respuesta Exitosa (200 OK):**
+```json
+{
+  "reservationIds": ["res-7731", "res-7740"]
+}
+```
+
+**Errores:**
+
+| Código | Cuándo |
+| :--- | :--- |
+| `401 Unauthorized` | Falta el token o no es válido. |
+| `403 Forbidden` | El token no es de un `ADMIN`. |
+
+**Evento emitido:** ninguno.
+
+## 6. Expirar Reserva (Uso interno de la Lambda de expiración)
 **Endpoint:** `POST /api/v1/reservations/{reservationId}/expire` (rol `ADMIN`, cuenta de servicio de la Lambda) \
-**Descripción:** Marca como `EXPIRED` una reserva `PENDING` o `CONFIRMED` cuyo plazo ha vencido. La Lambda lo invoca periódicamente para cada reserva vencida. Es idempotente: si la reserva ya estaba `EXPIRED`, responde `200` sin volver a publicar el evento.
+**Descripción:** Marca como `EXPIRED` una reserva `PENDING` o `CONFIRMED` cuyo plazo ha vencido. La Lambda lo invoca cada minuto para cada reserva que devuelve el listado de vencidas. Es idempotente: si la reserva ya estaba `EXPIRED`, responde `200` sin volver a publicar el evento.
 
 **Respuesta Exitosa (200 OK):**
 ```json

@@ -24,7 +24,9 @@ services:
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=s3,sns,sqs
+      - SERVICES=s3,sns,sqs,lambda,events,logs,iam,sts
+      # Las Lambdas se ejecutan en contenedores propios; deben unirse a esta red para llamar a reservations.
+      - LAMBDA_DOCKER_NETWORK=urbanmove-net
       - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
@@ -211,6 +213,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+# Red con nombre fijo (en vez de <carpeta>_default) para que LocalStack sepa a cuál conectar las Lambdas.
+networks:
+  default:
+    name: urbanmove-net
 
 volumes:
   postgres-data:

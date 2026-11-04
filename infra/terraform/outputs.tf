@@ -17,3 +17,8 @@ output "datalake_bucket" {
   description = "Nombre del bucket S3 del Data Lake."
   value       = aws_s3_bucket.data_lake.bucket
 }
+
+output "expiration_lambda_name" {
+  description = "Nombre de la Lambda de expiración de reservas (vacío si no está desplegada)."
+  value       = one(aws_lambda_function.expiration[*].function_name)
+}

@@ -2,6 +2,7 @@ package es.ulpgc.urbanmove.reservations.reservation;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -93,6 +94,23 @@ public class ReservationRepository {
                 new MapSqlParameterSource()
                         .addValue("id", id)
                         .addValue("now", Timestamp.from(now))) == 1;
+    }
+
+    /**
+     * Reservas activas (PENDING o CONFIRMED) cuyo plazo ya ha vencido, las más antiguas primero.
+     * Las recorre el índice reservations_active_expiry, que solo contiene las activas.
+     */
+    public List<Long> findOverdueIds(Instant now, int limit) {
+        return jdbc.queryForList("""
+                        SELECT id FROM reservations
+                         WHERE status IN ('PENDING', 'CONFIRMED') AND expires_at <= :now
+                         ORDER BY expires_at
+                         LIMIT :limit
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("now", Timestamp.from(now))
+                        .addValue("limit", limit),
+                Long.class);
     }
 
     /** PENDING o CONFIRMED → USED: el usuario ha iniciado el viaje con esta reserva. */

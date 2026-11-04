@@ -35,5 +35,6 @@
         <module>services/zones</module>
         <module>services/profiles</module>
         <module>services/analytics</module>
+        <module>lambdas/expiration</module>
     </modules>
 </project>
