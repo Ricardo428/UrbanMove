@@ -79,11 +79,16 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <transformers>
+                            <!--
+                                combine.self="override": spring-boot-starter-parent ya configura este plugin con sus
+                                propios transformers y filtros (para sus jars ejecutables), y Maven los mezclaría
+                                con los de aquí por posición. Esta Lambda no es una aplicación Spring Boot.
+                            -->
+                            <transformers combine.self="override">
                                 <!-- jjwt localiza su implementación y su serializador JSON con ServiceLoader. -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
-                            <filters>
+                            <filters combine.self="override">
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
