@@ -214,6 +214,17 @@ services:
       postgres:
         condition: service_healthy
 
+  # Gateway nginx: sirve la web de usuarios y reenvía /api/v1/<servicio> a cada microservicio.
+  # Sin depends_on a propósito: resuelve los nombres en cada petición, así que arranca aunque
+  # falte algún servicio (esa ruta da 502). Prueba: apps/web/smoke-test.sh
+  web:
+    profiles: ["apps"]
+    container_name: urbanmove-web
+    build:
+      context: ./apps/web
+    ports:
+      - "8080:80"
+
 # Red con nombre fijo (en vez de <carpeta>_default) para que LocalStack sepa a cuál conectar las Lambdas.
 networks:
   default:

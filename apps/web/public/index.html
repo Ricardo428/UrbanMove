@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UrbanMove</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+        form { display: grid; gap: 0.5rem; max-width: 20rem; }
+        .result { min-height: 1.5em; color: #1b6e2d; }
+        .result.error { color: #b3261e; }
+    </style>
+</head>
+<body>
+    <h1>UrbanMove</h1>
+
+    <!-- Con sesión: quién eres y cerrar sesión. Las tareas 3-6 irán dentro de esta sección. -->
+    <section id="logged-in" hidden>
+        <p>Sesión iniciada como <strong id="whoami"></strong></p>
+        <button id="logout" type="button">Cerrar sesión</button>
+    </section>
+
+    <!-- Sin sesión: entrar o crear cuenta. -->
+    <div id="logged-out">
+    <section>
+        <h2>Iniciar sesión</h2>
+        <form id="login-form">
+            <label>Email <input name="email" type="email" required autocomplete="email"></label>
+            <label>Contraseña <input name="password" type="password" required
+                                     autocomplete="current-password"></label>
+            <button type="submit">Entrar</button>
+        </form>
+        <p id="login-result" class="result" aria-live="polite"></p>
+    </section>
+
+    <section>
+        <h2>Crear cuenta</h2>
+        <!-- Los límites repiten los de RegisterRequest para avisar antes; quien decide es identity. -->
+        <form id="register-form">
+            <label>Email <input name="email" type="email" required maxlength="255" autocomplete="email"></label>
+            <label>Contraseña <input name="password" type="password" required minlength="8" maxlength="72"
+                                     autocomplete="new-password"></label>
+            <button type="submit">Registrarme</button>
+        </form>
+        <p id="register-result" class="result" aria-live="polite"></p>
+    </section>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
