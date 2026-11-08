@@ -1,5 +1,6 @@
 package es.ulpgc.urbanmove.messaging;
 
+import es.ulpgc.urbanmove.common.web.CorrelationIdFilter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -8,6 +9,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -95,7 +97,8 @@ public class OutboxRelay implements SmartLifecycle {
 
     private int relayBatch() {
         List<PendingEvent> pending = jdbc.query("""
-                        SELECT event_id, event_type, body::text AS body, attempts
+                        SELECT event_id, event_type, body::text AS body, attempts,
+                               body ->> 'correlationId' AS correlation_id
                           FROM outbox_events
                          WHERE published_at IS NULL AND next_attempt_at <= now()
                          ORDER BY created_at
@@ -103,10 +106,12 @@ public class OutboxRelay implements SmartLifecycle {
                            FOR UPDATE SKIP LOCKED
                         """,
                 (rs, row) -> new PendingEvent(rs.getObject("event_id", UUID.class), rs.getString("event_type"),
-                        rs.getString("body"), rs.getInt("attempts")),
+                        rs.getString("body"), rs.getInt("attempts"), rs.getString("correlation_id")),
                 settings.batchSize());
 
         for (PendingEvent event : pending) {
+            // Este hilo no atiende ninguna petición: el id del flujo solo está dentro del evento.
+            MDC.put(CorrelationIdFilter.MDC_KEY, event.correlationId());
             try {
                 sns.publish(request -> request
                         .topicArn(topicArn)
@@ -128,6 +133,8 @@ public class OutboxRelay implements SmartLifecycle {
                         attempts, truncate(e.toString()), backoff, event.id());
                 log.warn("No se pudo publicar {} {} (intento {}), se reintenta en {} s: {}",
                         event.type(), event.id(), attempts, backoff, e.getMessage());
+            } finally {
+                MDC.remove(CorrelationIdFilter.MDC_KEY);
             }
         }
         return pending.size();
@@ -137,6 +144,6 @@ public class OutboxRelay implements SmartLifecycle {
         return text.length() <= MAX_ERROR_LENGTH ? text : text.substring(0, MAX_ERROR_LENGTH);
     }
 
-    private record PendingEvent(UUID id, String type, String body, int attempts) {
+    private record PendingEvent(UUID id, String type, String body, int attempts, String correlationId) {
     }
 }

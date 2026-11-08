@@ -18,6 +18,34 @@
     <section id="logged-in" hidden>
         <p>Sesión iniciada como <strong id="whoami"></strong></p>
         <button id="logout" type="button">Cerrar sesión</button>
+
+        <div id="reservation-panel" hidden>
+            <h2>Tu reserva</h2>
+            <p id="reservation-summary"></p>
+            <p id="reservation-countdown"></p>
+            <button id="reservation-confirm" type="button">Confirmar</button>
+            <button id="reservation-cancel" type="button">Cancelar reserva</button>
+        </div>
+        <p id="reservation-result" class="result" aria-live="polite"></p>
+
+        <h2>Vehículos disponibles</h2>
+        <form id="vehicle-filters">
+            <label>Zona
+                <select id="vehicle-zone">
+                    <option value="">Todas las zonas</option>
+                </select>
+            </label>
+            <label>Tipo
+                <select id="vehicle-type">
+                    <option value="">Todos</option>
+                    <option value="BIKE">Bicicletas</option>
+                    <option value="SCOOTER">Patinetes</option>
+                </select>
+            </label>
+            <button id="vehicle-refresh" type="button">Actualizar lista</button>
+        </form>
+        <ul id="vehicle-list"></ul>
+        <p id="vehicles-result" class="result" aria-live="polite"></p>
     </section>
 
     <!-- Sin sesión: entrar o crear cuenta. -->

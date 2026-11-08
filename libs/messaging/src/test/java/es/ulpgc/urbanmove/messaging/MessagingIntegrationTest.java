@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.AppenderBase;
 import es.ulpgc.urbanmove.common.web.CorrelationIdFilter;
 import es.ulpgc.urbanmove.events.EventEnvelope;
 import es.ulpgc.urbanmove.events.EventJson;
@@ -18,6 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -127,6 +131,38 @@ class MessagingIntegrationTest {
         assertThat(jdbc.queryForObject(
                 "SELECT published_at IS NOT NULL FROM outbox_events WHERE event_id = ?",
                 Boolean.class, received.eventId())).isTrue();
+    }
+
+    @Test
+    void theRelayLogsThePublicationWithTheCorrelationIdOfTheEvent() {
+        Map<String, String> correlationByMessage = new ConcurrentHashMap<>();
+        // El MDC se lee aquí, en el hilo del relay: logback lo consulta en el hilo que le pide el dato.
+        AppenderBase<ILoggingEvent> capture = new AppenderBase<>() {
+            @Override
+            protected void append(ILoggingEvent logLine) {
+                correlationByMessage.put(logLine.getFormattedMessage(),
+                        logLine.getMDCPropertyMap().getOrDefault(CorrelationIdFilter.MDC_KEY, "sin-id"));
+            }
+        };
+        Logger relayLogger = (Logger) LoggerFactory.getLogger(OutboxRelay.class);
+        capture.start();
+        relayLogger.addAppender(capture);
+
+        try {
+            EventEnvelope event;
+            MDC.put(CorrelationIdFilter.MDC_KEY, "c-relay001");
+            try {
+                event = transaction.execute(status -> events.publish(registered(newUserId())));
+            } finally {
+                MDC.remove(CorrelationIdFilter.MDC_KEY);
+            }
+
+            String published = "Evento publicado: UserRegistered " + event.eventId();
+            await().atMost(Duration.ofSeconds(20)).until(() -> correlationByMessage.containsKey(published));
+            assertThat(correlationByMessage.get(published)).isEqualTo("c-relay001");
+        } finally {
+            relayLogger.detachAppender(capture);
+        }
     }
 
     @Test

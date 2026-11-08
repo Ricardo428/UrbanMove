@@ -43,6 +43,25 @@ export const session = {
     },
 };
 
+/**
+ * Avisa solo cuando se entra o se sale: la sesión también cambia al confirmarse, y eso no debe recargar nada.
+ * Si la pestaña ya tenía sesión (por ejemplo, tras recargar), onLogin se llama enseguida.
+ */
+export function onLoginChange(onLogin, onLogout) {
+    let wasLoggedIn = false;
+    const check = () => {
+        const wasLoggedInBefore = wasLoggedIn;
+        wasLoggedIn = session.current() !== null;
+        if (wasLoggedIn && !wasLoggedInBefore) {
+            onLogin();
+        } else if (!wasLoggedIn && wasLoggedInBefore) {
+            onLogout();
+        }
+    };
+    window.addEventListener("session-changed", check);
+    check();
+}
+
 function read() {
     try {
         return JSON.parse(sessionStorage.getItem(KEY));

@@ -1,6 +1,8 @@
 // Conecta la página con la API: cada formulario llama a api() y muestra el resultado.
-import { api, ApiError } from "./api.js";
+import { api } from "./api.js";
 import { session } from "./session.js";
+import { show, showError } from "./ui.js";
+import "./vehicles.js"; // la pantalla de vehículos se gestiona sola
 
 const loggedOut = document.getElementById("logged-out");
 const loggedIn = document.getElementById("logged-in");
@@ -68,21 +70,6 @@ function render() {
     if (current) {
         const id = current.userId ? ", id " + current.userId : "";
         whoami.textContent = current.email + " (" + current.role + id + ")";
-    }
-}
-
-// textContent y no innerHTML: el texto de la API se muestra tal cual y nunca se ejecuta como HTML.
-function show(element, text, isError) {
-    element.textContent = text;
-    element.classList.toggle("error", isError);
-}
-
-function showError(element, error) {
-    if (error instanceof ApiError) {
-        show(element, error.message + " (id: " + error.correlationId + ")", true);
-    } else {
-        show(element, "Error inesperado en la página", true);
-        console.error(error);
     }
 }
 
