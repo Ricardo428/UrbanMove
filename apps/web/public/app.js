@@ -3,6 +3,7 @@ import { api } from "./api.js";
 import { session } from "./session.js";
 import { show, showError } from "./ui.js";
 import "./vehicles.js"; // la pantalla de vehículos se gestiona sola
+import "./profile.js"; // y la del perfil también
 
 const loggedOut = document.getElementById("logged-out");
 const loggedIn = document.getElementById("logged-in");

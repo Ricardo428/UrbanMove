@@ -12,13 +12,15 @@ check() {
     local description="$1" expected="$2" method="$3" path="$4" body="${5:-}" token="${6:-}"
     local args=(-s -o /dev/null -w '%{http_code}' --max-time 10 -X "$method")
     if [ -n "$body" ]; then
-        args+=(-H 'Content-Type: application/json' -d "$body")
+        # Por la entrada estándar y no como argumento: en Windows, un argumento con tildes llega a curl
+        # en otra codificación, no es UTF-8 válido y el servicio responde 400.
+        args+=(-H 'Content-Type: application/json' --data-binary @-)
     fi
     if [ -n "$token" ]; then
         args+=(-H "Authorization: Bearer $token")
     fi
     local actual
-    actual=$(curl "${args[@]}" "$BASE_URL$path")
+    actual=$(printf '%s' "$body" | curl "${args[@]}" "$BASE_URL$path")
     if [ "$actual" = "$expected" ]; then
         echo "OK    $description ($path -> $actual)"
     else
@@ -116,22 +118,110 @@ check "confirmarla otra vez" 409 POST "/api/v1/reservations/$RESERVATION/confirm
 check "cancelar la reserva" 200 POST "/api/v1/reservations/$RESERVATION/cancel" "" "$TOKEN"
 check "cancelarla otra vez" 409 POST "/api/v1/reservations/$RESERVATION/cancel" "" "$TOKEN"
 
-# El vehículo se libera por el evento ReservationCancelled: hay que dejarle un momento.
-released=no
+# wait_available <evento>: el vehículo se libera por un evento, así que hay que dejarle un momento.
+wait_available() {
+    for _ in $(seq 1 20); do
+        if curl -s --max-time 10 -H "Authorization: Bearer $TOKEN" "$BASE_URL/api/v1/availability/$VEHICLE" |
+            grep -q '"status":"AVAILABLE"'; then
+            echo "OK    el evento $1 libera el vehículo"
+            return
+        fi
+        sleep 1
+    done
+    echo "FALLO $VEHICLE sigue sin estar AVAILABLE tras $1"
+    failures=$((failures + 1))
+}
+
+wait_available ReservationCancelled
+
+# Viaje sin reserva (tarea 5a), con el mismo vehículo, ya libre otra vez.
+VEHICLE_JSON="{\"vehicleId\":\"$VEHICLE\"}"
+STARTED=$(curl -s --max-time 10 -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    -d "$VEHICLE_JSON" "$BASE_URL/api/v1/rides/start")
+RIDE=$(first_field rideId "$STARTED")
+ORIGIN=$(first_field originZoneId "$STARTED")
+if [ -n "$RIDE" ]; then
+    echo "OK    viaje $RIDE iniciado con $VEHICLE desde $ORIGIN"
+else
+    echo "FALLO no se pudo iniciar un viaje con '$VEHICLE'"
+    failures=$((failures + 1))
+fi
+check_body "availability lo muestra en uso" "/api/v1/availability/$VEHICLE" "$TOKEN" '"status":"IN_USE"'
+check "iniciar un viaje con un vehículo en uso" 409 POST "/api/v1/rides/start" "$VEHICLE_JSON" "$OTHER_TOKEN"
+check "iniciar un viaje con un vehículo que no existe" 404 POST "/api/v1/rides/start" '{"vehicleId":"v-9999"}' "$TOKEN"
+check "iniciar un viaje sin vehículo" 400 POST "/api/v1/rides/start" '{}' "$TOKEN"
+check_body "el viaje está en curso" "/api/v1/rides/$RIDE" "$TOKEN" '"status":"IN_PROGRESS"'
+check "ver el viaje de otro usuario" 403 GET "/api/v1/rides/$RIDE" "" "$OTHER_TOKEN"
+
+FINISH="/api/v1/rides/$RIDE/finish"
+# Se finaliza en la zona de origen para que los datos de seed.sh no cambien de sitio en cada ejecución.
+ORIGIN_JSON="{\"destinationZoneId\":\"$ORIGIN\"}"
+check "finalizar el viaje de otro usuario" 403 POST "$FINISH" "$ORIGIN_JSON" "$OTHER_TOKEN"
+check "finalizar en una zona sin aparcamiento" 422 POST "$FINISH" '{"destinationZoneId":"zone-sur"}' "$TOKEN"
+check "finalizar en una zona que no existe" 404 POST "$FINISH" '{"destinationZoneId":"zone-nada"}' "$TOKEN"
+check "finalizar el viaje" 200 POST "$FINISH" "$ORIGIN_JSON" "$TOKEN"
+check "finalizarlo otra vez" 409 POST "$FINISH" "$ORIGIN_JSON" "$TOKEN"
+wait_available RideFinished
+
+# Viaje desde una reserva (tarea 5b), con el mismo vehículo.
+RESERVATION=$(first_field reservationId "$(curl -s --max-time 10 -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' -d "$VEHICLE_JSON" "$BASE_URL/api/v1/reservations")")
+WITH_RESERVATION="{\"vehicleId\":\"$VEHICLE\",\"reservationId\":\"$RESERVATION\"}"
+check "iniciar con la reserva de otro usuario" 403 POST "/api/v1/rides/start" "$WITH_RESERVATION" "$OTHER_TOKEN"
+# Sin esta comprobación (isFor), la reserva de un vehículo serviría para coger otro y el primero quedaría bloqueado.
+check "iniciar con la reserva en otro vehículo" 409 POST "/api/v1/rides/start" \
+    "{\"vehicleId\":\"v-9999\",\"reservationId\":\"$RESERVATION\"}" "$TOKEN"
+check "iniciar con una reserva que no existe" 404 POST "/api/v1/rides/start" \
+    "{\"vehicleId\":\"$VEHICLE\",\"reservationId\":\"res-1\"}" "$TOKEN"
+STARTED=$(curl -s --max-time 10 -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    -d "$WITH_RESERVATION" "$BASE_URL/api/v1/rides/start")
+RIDE=$(first_field rideId "$STARTED")
+if [ -n "$RIDE" ]; then
+    echo "OK    viaje $RIDE iniciado con la reserva $RESERVATION"
+else
+    echo "FALLO no se pudo iniciar un viaje con la reserva '$RESERVATION': $STARTED"
+    failures=$((failures + 1))
+fi
+
+# La reserva pasa a USED por el evento RideStarted, un momento después.
+used=no
 for _ in $(seq 1 20); do
-    if curl -s --max-time 10 -H "Authorization: Bearer $TOKEN" "$BASE_URL/api/v1/availability/$VEHICLE" |
-        grep -q '"status":"AVAILABLE"'; then
-        released=yes
+    if curl -s --max-time 10 -H "Authorization: Bearer $TOKEN" "$BASE_URL/api/v1/reservations/$RESERVATION" |
+        grep -q '"status":"USED"'; then
+        used=yes
         break
     fi
     sleep 1
 done
-if [ "$released" = yes ]; then
-    echo "OK    el evento ReservationCancelled libera el vehículo"
+if [ "$used" = yes ]; then
+    echo "OK    el evento RideStarted marca la reserva como USED"
 else
-    echo "FALLO $VEHICLE sigue sin estar AVAILABLE tras cancelar"
+    echo "FALLO la reserva $RESERVATION no pasa a USED"
     failures=$((failures + 1))
 fi
+check "una reserva usada no vale para otro viaje" 409 POST "/api/v1/rides/start" "$WITH_RESERVATION" "$TOKEN"
+check "cancelar una reserva usada" 409 POST "/api/v1/reservations/$RESERVATION/cancel" "" "$TOKEN"
+check "finalizar el viaje de la reserva" 200 POST "/api/v1/rides/$RIDE/finish" "$ORIGIN_JSON" "$TOKEN"
+wait_available RideFinished
+
+# Perfil (tarea 6). El usuario de esta ejecución es nuevo: todavía no tiene perfil.
+PROFILE="/api/v1/profiles/me"
+PROFILE_JSON='{"firstName":"Ana","lastName":"García","phone":"+34600123456","preferences":{"newsletter":true,"language":"es"}}'
+check "perfil sin crear" 404 GET "$PROFILE" "" "$TOKEN"
+check "baja sin perfil" 404 DELETE "$PROFILE" "" "$TOKEN"
+check "perfil sin token" 401 GET "$PROFILE"
+check "perfil con teléfono no válido" 400 PUT "$PROFILE" '{"firstName":"Ana","lastName":"García","phone":"12"}' "$TOKEN"
+check "perfil sin nombre" 400 PUT "$PROFILE" '{"lastName":"García"}' "$TOKEN"
+check "crear el perfil" 201 PUT "$PROFILE" "$PROFILE_JSON" "$TOKEN"
+check "actualizar el perfil" 200 PUT "$PROFILE" '{"firstName":"Ana María","lastName":"García"}' "$TOKEN"
+check_body "el perfil guarda los cambios" "$PROFILE" "$TOKEN" '"firstName":"Ana María"'
+# /me sale del token: el otro usuario ve el suyo (que no existe), nunca el de Ana.
+check "otro usuario no ve ese perfil" 404 GET "$PROFILE" "" "$OTHER_TOKEN"
+check "darse de baja" 200 DELETE "$PROFILE" "" "$TOKEN"
+check "darse de baja otra vez" 409 DELETE "$PROFILE" "" "$TOKEN"
+check "modificar un perfil dado de baja" 403 PUT "$PROFILE" "$PROFILE_JSON" "$TOKEN"
+check_body "tras la baja el perfil está INACTIVE" "$PROFILE" "$TOKEN" '"status":"INACTIVE"'
+check_body "la baja es lógica: los datos siguen" "$PROFILE" "$TOKEN" '"firstName":"Ana María"'
 
 if [ "$failures" -gt 0 ]; then
     echo "$failures prueba(s) fallida(s)"

@@ -1,10 +1,12 @@
 // La reserva en curso del usuario: crearla, confirmarla, cancelarla y ver cuánto le queda.
 // Solo se guarda su id: el estado se pregunta siempre a reservations, que es la dueña de ese dato.
 import { api, ApiError } from "./api.js";
+import { startRide } from "./rides.js";
 import { onLoginChange } from "./session.js";
-import { show, showError } from "./ui.js";
+import { tabStorage } from "./storage.js";
+import { formatMinutesSeconds, show, showError } from "./ui.js";
 
-const STORAGE_KEY = "urbanmove.reservation";
+const storedReservationId = tabStorage("urbanmove.reservation");
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED"];
 const STATUS_LABELS = { PENDING: "pendiente de confirmar", CONFIRMED: "confirmada" };
 // Al cancelar, availability libera el vehículo por un evento: tarda un momento en volver a la lista.
@@ -17,6 +19,7 @@ const summary = document.getElementById("reservation-summary");
 const countdown = document.getElementById("reservation-countdown");
 const confirmButton = document.getElementById("reservation-confirm");
 const cancelButton = document.getElementById("reservation-cancel");
+const startButton = document.getElementById("reservation-start");
 const result = document.getElementById("reservation-result");
 
 let current = null; // la reserva activa, tal como la devolvió la API
@@ -25,6 +28,7 @@ let actionInProgress = false; // evita enviar dos veces la misma acción con un 
 
 confirmButton.addEventListener("click", () => runAction(confirmCurrent));
 cancelButton.addEventListener("click", () => runAction(cancelCurrent));
+startButton.addEventListener("click", () => runAction(startRideWithReservation));
 onLoginChange(restoreAfterLogin, forgetEverything);
 
 export function hasActiveReservation() {
@@ -62,6 +66,18 @@ async function cancelCurrent() {
     setTimeout(notifyChanged, VEHICLE_RELEASE_WAIT_MS);
 }
 
+// El viaje lo gestiona rides.js. Aquí solo se decide qué pasa con la reserva después.
+async function startRideWithReservation() {
+    const { vehicleId, reservationId } = current;
+    if (await startRide(vehicleId, reservationId)) {
+        // Reservations la pasará a USED al recibir RideStarted: ya no hay nada que confirmar ni cancelar.
+        forgetReservation();
+        notifyChanged();
+    } else if (current?.reservationId === reservationId) {
+        await refreshFromServer(); // si rides la rechazó porque ya no está activa, aquí se ve
+    }
+}
+
 async function runAction(action) {
     if (actionInProgress) {
         return;
@@ -82,7 +98,7 @@ async function runAction(action) {
 }
 
 async function restoreAfterLogin() {
-    const reservationId = readStoredId();
+    const reservationId = storedReservationId.read();
     if (!reservationId) {
         return;
     }
@@ -123,7 +139,7 @@ async function refreshFromServer() {
 
 function remember(reservation) {
     current = reservation;
-    writeStoredId(reservation.reservationId);
+    storedReservationId.write(reservation.reservationId);
     summary.textContent = "Reserva " + reservation.reservationId + " del vehículo " + reservation.vehicleId
         + ": " + STATUS_LABELS[reservation.status];
     panel.hidden = false;
@@ -140,8 +156,9 @@ function drawCountdown() {
     const secondsLeft = Math.ceil((new Date(current.expiresAt).getTime() - Date.now()) / 1000);
     const expired = secondsLeft <= 0;
     // Solo orienta al usuario: quien decide si ha caducado es el servidor.
-    countdown.textContent = expired ? "El plazo ha vencido." : "Plazo restante: " + formatTime(secondsLeft);
+    countdown.textContent = expired ? "El plazo ha vencido." : "Plazo restante: " + formatMinutesSeconds(secondsLeft);
     confirmButton.hidden = current.status !== "PENDING" || expired;
+    startButton.hidden = expired;
     if (expired && secondsLeft % EXPIRED_RECHECK_SECONDS === 0) {
         checkIfClosedByServer();
     }
@@ -158,17 +175,11 @@ async function checkIfClosedByServer() {
     }
 }
 
-function formatTime(totalSeconds) {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = String(totalSeconds % 60).padStart(2, "0");
-    return minutes + ":" + seconds;
-}
-
 function forgetReservation() {
     clearInterval(countdownTimer);
     current = null;
     panel.hidden = true;
-    removeStoredId();
+    storedReservationId.remove();
 }
 
 function forgetEverything() {
@@ -178,28 +189,4 @@ function forgetEverything() {
 
 function notifyChanged() {
     window.dispatchEvent(new Event("reservation-changed"));
-}
-
-function readStoredId() {
-    try {
-        return sessionStorage.getItem(STORAGE_KEY);
-    } catch {
-        return null;
-    }
-}
-
-function writeStoredId(reservationId) {
-    try {
-        sessionStorage.setItem(STORAGE_KEY, reservationId);
-    } catch {
-        // Almacenamiento bloqueado: la reserva sigue en pantalla, pero no sobrevive a recargar.
-    }
-}
-
-function removeStoredId() {
-    try {
-        sessionStorage.removeItem(STORAGE_KEY);
-    } catch {
-        // Almacenamiento bloqueado: no había nada que borrar.
-    }
 }

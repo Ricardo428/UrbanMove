@@ -1,6 +1,7 @@
 // Pantalla de vehículos disponibles. Los filtros los aplica availability, que es la dueña de ese dato.
 import { api } from "./api.js";
 import { hasActiveReservation, reserveVehicle } from "./reservations.js";
+import { hasActiveRide, startRide } from "./rides.js";
 import { onLoginChange, session } from "./session.js";
 import { show, showError } from "./ui.js";
 
@@ -18,11 +19,14 @@ let latestVehicleRequest = 0;
 zoneSelect.addEventListener("change", loadVehicles);
 typeSelect.addEventListener("change", loadVehicles);
 refreshButton.addEventListener("click", loadVehicles);
-window.addEventListener("reservation-changed", () => {
-    if (session.current()) {
-        loadVehicles();
-    }
-});
+// Una reserva o un viaje que empieza o termina cambia qué vehículos están libres.
+for (const eventName of ["reservation-changed", "ride-changed"]) {
+    window.addEventListener(eventName, () => {
+        if (session.current()) {
+            loadVehicles();
+        }
+    });
+}
 onLoginChange(loadZonesAndVehicles, clearScreen);
 
 async function loadZonesAndVehicles() {
@@ -82,13 +86,21 @@ function vehicleItem(vehicle) {
     const item = document.createElement("li");
     const type = TYPE_LABELS[vehicle.vehicleType] ?? vehicle.vehicleType;
     const zone = zoneNames.get(vehicle.zoneId) ?? vehicle.zoneId;
-    const reserveButton = document.createElement("button");
-    reserveButton.type = "button";
-    reserveButton.textContent = "Reservar";
-    reserveButton.disabled = hasActiveReservation();
-    reserveButton.addEventListener("click", () => reserveVehicle(vehicle.vehicleId));
-    item.append(type + " " + vehicle.vehicleId + " · " + zone + " ", reserveButton);
+    // Con una reserva o un viaje en curso no se ofrece coger otro: el primero seguiría bloqueando su vehículo.
+    const busy = hasActiveReservation() || hasActiveRide();
+    item.append(type + " " + vehicle.vehicleId + " · " + zone + " ",
+        actionButton("Reservar", busy, () => reserveVehicle(vehicle.vehicleId)), " ",
+        actionButton("Iniciar viaje", busy, () => startRide(vehicle.vehicleId)));
     return item;
+}
+
+function actionButton(text, disabled, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = text;
+    button.disabled = disabled;
+    button.addEventListener("click", onClick);
+    return button;
 }
 
 function clearScreen() {

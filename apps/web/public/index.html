@@ -4,9 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UrbanMove</title>
+    <!-- Icono vacío: sin él, el navegador pide /favicon.ico y deja un 404 en la consola. -->
+    <link rel="icon" href="data:,">
     <style>
         body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
-        form { display: grid; gap: 0.5rem; max-width: 20rem; }
+        form, fieldset { display: grid; gap: 0.5rem; max-width: 20rem; }
+        fieldset { border: 0; margin: 0; padding: 0; }
         .result { min-height: 1.5em; color: #1b6e2d; }
         .result.error { color: #b3261e; }
     </style>
@@ -24,9 +27,23 @@
             <p id="reservation-summary"></p>
             <p id="reservation-countdown"></p>
             <button id="reservation-confirm" type="button">Confirmar</button>
+            <button id="reservation-start" type="button">Iniciar viaje</button>
             <button id="reservation-cancel" type="button">Cancelar reserva</button>
         </div>
         <p id="reservation-result" class="result" aria-live="polite"></p>
+
+        <div id="ride-panel" hidden>
+            <h2>Tu viaje</h2>
+            <p id="ride-summary"></p>
+            <p id="ride-elapsed"></p>
+            <label>Zona de destino
+                <select id="ride-destination">
+                    <option value="">Elige una zona</option>
+                </select>
+            </label>
+            <button id="ride-finish" type="button">Finalizar viaje</button>
+        </div>
+        <p id="ride-result" class="result" aria-live="polite"></p>
 
         <h2>Vehículos disponibles</h2>
         <form id="vehicle-filters">
@@ -46,6 +63,29 @@
         </form>
         <ul id="vehicle-list"></ul>
         <p id="vehicles-result" class="result" aria-live="polite"></p>
+
+        <h2>Tu perfil</h2>
+        <p id="profile-status"></p>
+        <!-- Los límites repiten los de SaveRequest para avisar antes; quien decide es profiles. -->
+        <form id="profile-form">
+            <fieldset id="profile-fields">
+                <label>Nombre <input name="firstName" required maxlength="100" autocomplete="given-name"></label>
+                <label>Apellidos <input name="lastName" required maxlength="100" autocomplete="family-name"></label>
+                <label>Teléfono <input name="phone" type="tel" pattern="\+?[0-9]{7,15}" autocomplete="tel"
+                                       title="Entre 7 y 15 dígitos, con un + inicial opcional"></label>
+                <label><input name="newsletter" type="checkbox"> Recibir la newsletter</label>
+                <label>Idioma
+                    <select name="language">
+                        <option value="">Sin preferencia</option>
+                        <option value="es">Español</option>
+                        <option value="en">Inglés</option>
+                    </select>
+                </label>
+                <button type="submit">Guardar perfil</button>
+            </fieldset>
+        </form>
+        <button id="profile-deactivate" type="button" hidden>Darme de baja</button>
+        <p id="profile-result" class="result" aria-live="polite"></p>
     </section>
 
     <!-- Sin sesión: entrar o crear cuenta. -->
