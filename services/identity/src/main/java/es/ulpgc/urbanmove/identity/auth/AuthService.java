@@ -5,6 +5,7 @@ import es.ulpgc.urbanmove.common.security.JwtTokenService;
 import es.ulpgc.urbanmove.common.security.Role;
 import es.ulpgc.urbanmove.events.payload.UserRegistered;
 import es.ulpgc.urbanmove.identity.user.UserEntity;
+import es.ulpgc.urbanmove.identity.user.UserIds;
 import es.ulpgc.urbanmove.identity.user.UserRepository;
 import es.ulpgc.urbanmove.messaging.EventPublisher;
 import java.time.Instant;
