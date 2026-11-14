@@ -38,16 +38,31 @@ public final class ExpirationJob {
     static final String CORRELATION_HEADER = "X-Correlation-Id";
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration TOKEN_TTL = Duration.ofMinutes(1);
+    /**
+     * Tiempo que la Lambda dedica a expirar antes de dejar el resto para la ejecución del minuto siguiente.
+     * Más el peor caso de la llamada en curso (REQUEST_TIMEOUT) y la consulta inicial (otra REQUEST_TIMEOUT)
+     * queda en unos 50 s, por debajo del timeout de 60 s de la función en Terraform.
+     */
+    static final Duration DEFAULT_BUDGET = Duration.ofSeconds(40);
+    /**
+     * Dos veces el timeout de la Lambda: el token nunca caduca a mitad de una ejecución y, si se filtrara
+     * desde los logs o el entorno, valdría pocos minutos (es un ADMIN).
+     */
+    static final Duration TOKEN_TTL = Duration.ofMinutes(2);
     private static final int MIN_SECRET_BYTES = 32;
 
     private final String baseUrl;
     private final SecretKey key;
     private final HttpClient http;
     private final Clock clock;
+    private final Duration budget;
     private final ObjectMapper json = new ObjectMapper();
 
     public ExpirationJob(String reservationsUrl, String jwtSecret, HttpClient http, Clock clock) {
+        this(reservationsUrl, jwtSecret, http, clock, DEFAULT_BUDGET);
+    }
+
+    public ExpirationJob(String reservationsUrl, String jwtSecret, HttpClient http, Clock clock, Duration budget) {
         if (reservationsUrl == null || reservationsUrl.isBlank()) {
             throw new IllegalStateException("Falta la variable de entorno RESERVATIONS_URL");
         }
@@ -61,6 +76,7 @@ public final class ExpirationJob {
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
         this.http = http;
         this.clock = clock;
+        this.budget = budget;
     }
 
     public static ExpirationJob fromEnvironment() {
@@ -70,10 +86,11 @@ public final class ExpirationJob {
     }
 
     /** Resultado de una ejecución. */
-    public record Result(int expired, int alreadyHandled, List<String> failed) {
+    public record Result(int expired, int alreadyHandled, List<String> failed, int skipped) {
 
         public String summary() {
-            return "expiradas=" + expired + ", ya resueltas=" + alreadyHandled + ", con error=" + failed.size();
+            return "expiradas=" + expired + ", ya resueltas=" + alreadyHandled + ", con error=" + failed.size()
+                    + ", aplazadas=" + skipped;
         }
     }
 
@@ -85,10 +102,17 @@ public final class ExpirationJob {
         List<String> overdue = listOverdue(token, correlationId);
         log.accept("[" + correlationId + "] reservas vencidas: " + overdue.size());
 
+        // Si se acaba el presupuesto, las que faltan siguen vencidas y salen en la consulta del minuto siguiente.
+        Instant deadline = clock.instant().plus(budget);
         int expired = 0;
         int alreadyHandled = 0;
+        int skipped = 0;
         List<String> failed = new ArrayList<>();
         for (String reservationId : overdue) {
+            if (!clock.instant().isBefore(deadline)) {
+                skipped++;
+                continue;
+            }
             try {
                 int status = expire(reservationId, token, correlationId);
                 if (status == 200) {
@@ -103,7 +127,7 @@ public final class ExpirationJob {
                 failed.add(reservationId + " (" + e.getMessage() + ")");
             }
         }
-        Result result = new Result(expired, alreadyHandled, List.copyOf(failed));
+        Result result = new Result(expired, alreadyHandled, List.copyOf(failed), skipped);
         log.accept("[" + correlationId + "] " + result.summary());
         return result;
     }

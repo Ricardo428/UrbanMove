@@ -2,6 +2,7 @@ package es.ulpgc.urbanmove.profiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import es.ulpgc.urbanmove.common.security.JwtTokenService;
 import es.ulpgc.urbanmove.common.security.Role;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,9 @@ class ProfilesApiTest extends AbstractIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private JwtTokenService tokens;
 
     // --- crear y actualizar ---
 
@@ -192,6 +197,43 @@ class ProfilesApiTest extends AbstractIntegrationTest {
         assertThat((String) response.getBody().get("message")).startsWith("Perfil desactivado correctamente");
         assertThat(get(user).getBody()).containsEntry("status", "INACTIVE").containsEntry("firstName", "Ana");
         assertThat(count(user)).isEqualTo(1);
+    }
+
+    @Test
+    void deactivatingLeavesUserDeactivatedInTheOutboxWithTheRequestCorrelationId() {
+        String user = newUser();
+        put(user, validBody());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(tokens.generate(user, Role.USER));
+        headers.set("X-Correlation-Id", "c-baja0001");
+
+        ResponseEntity<Map> response = rest.exchange(ME, HttpMethod.DELETE, new HttpEntity<>(headers), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<String, Object> event = jdbc.queryForMap("""
+                        SELECT event_type, body ->> 'source' AS source, body ->> 'correlationId' AS correlation,
+                               body -> 'payload' ->> 'deactivatedAt' AS deactivated_at
+                          FROM outbox_events WHERE body -> 'payload' ->> 'userId' = ?
+                        """,
+                user);
+        assertThat(event).containsEntry("event_type", "UserDeactivated")
+                .containsEntry("source", "profiles-service")
+                .containsEntry("correlation", "c-baja0001");
+        assertThat(event.get("deactivated_at")).isNotNull();
+    }
+
+    @Test
+    void aRejectedDeactivationPublishesNothing() {
+        String withoutProfile = newUser();
+        String alreadyInactive = newUser();
+        put(alreadyInactive, validBody());
+        delete(alreadyInactive);
+        Integer before = jdbc.queryForObject("SELECT count(*) FROM outbox_events", Integer.class);
+
+        assertThat(delete(withoutProfile).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(delete(alreadyInactive).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_events", Integer.class)).isEqualTo(before);
     }
 
     @Test

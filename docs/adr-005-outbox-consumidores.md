@@ -12,7 +12,7 @@ Cada servicio cambia su base de datos y publica un evento en SNS. Son dos sistem
 *   *Outbox en la base del servicio y consumidor propio (elegida).*
 
 **Decisión:**
-*   **Contrato en código (`libs/events-contract`).** Sobre común, un `enum` con los 13 eventos y su versión, y un record por payload. Solo depende de Jackson para que las Lambdas lo usen igual. Un test lee los ejemplos de [events.md](events.md) y falla si el código y la documentación no coinciden.
+*   **Contrato en código (`libs/events-contract`).** Sobre común, un `enum` con los 14 eventos y su versión, y un record por payload. Solo depende de Jackson para que las Lambdas lo usen igual. Un test lee los ejemplos de [events.md](events.md) y falla si el código y la documentación no coinciden.
 *   **Outbox.** `EventPublisher.publish` escribe el evento en `outbox_events` y exige una transacción activa, así que el evento y el cambio de estado se guardan juntos o no se guarda ninguno.
 *   **Relay.** `OutboxRelay` lee la outbox cada segundo y publica en SNS. Usa `FOR UPDATE SKIP LOCKED`, así que varias réplicas del mismo servicio se reparten los eventos sin publicarlos dos veces a la vez. Si SNS falla, el evento se reintenta con espera exponencial (de 1 s a 5 min) y el error queda en `last_error`. Sin topic configurado, el servicio arranca igual y los eventos esperan.
 *   **Consumidor.** `EventConsumer` lee la cola SQS del servicio con long polling. Por cada evento, en una transacción, inserta el `eventId` en `processed_events` (si ya estaba, lo descarta) y llama al `EventHandler`. Solo borra el mensaje si la transacción termina bien; si no, SQS lo reentrega y tras 3 intentos lo mueve a la DLQ. Un mensaje que no es un evento válido también acaba en la DLQ.

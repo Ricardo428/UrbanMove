@@ -2,6 +2,12 @@ package es.ulpgc.urbanmove.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import es.ulpgc.urbanmove.common.security.JwtTokenService;
+import es.ulpgc.urbanmove.common.security.Role;
+import es.ulpgc.urbanmove.events.EventEnvelope;
+import es.ulpgc.urbanmove.events.payload.UserDeactivated;
+import es.ulpgc.urbanmove.identity.events.UserDeactivatedHandler;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -25,6 +31,12 @@ class IdentityApiTest extends AbstractIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private UserDeactivatedHandler deactivated;
+
+    @Autowired
+    private JwtTokenService tokens;
 
     // --- registro ---
 
@@ -150,6 +162,72 @@ class IdentityApiTest extends AbstractIntegrationTest {
         assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    // --- baja de usuario (UserDeactivated, ADR-009) ---
+
+    @Test
+    void aDeactivationEventBlocksLoginAndValidateButKeepsTheUser() {
+        String email = uniqueEmail();
+        String userId = (String) register(email, PASSWORD).getBody().get("id");
+        String token = tokenOf(login(email, PASSWORD));
+
+        deactivated.handle(new UserDeactivated(userId, Instant.now()), eventOf(userId));
+
+        ResponseEntity<Map> login = login(email, PASSWORD);
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(login.getBody().get("error")).isEqualTo("FORBIDDEN");
+        ResponseEntity<Map> validate = get("/validate", token);
+        assertThat(validate.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(validate.getBody().get("valid")).isEqualTo(false);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE email = ?", Integer.class, email))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void aDeactivatedUserWithAWrongPasswordStillGetsTheGenericError() {
+        String email = uniqueEmail();
+        String userId = (String) register(email, PASSWORD).getBody().get("id");
+        deactivated.handle(new UserDeactivated(userId, Instant.now()), eventOf(userId));
+
+        assertThat(login(email, "OtraContrasena1").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void handlingTheSameDeactivationTwiceChangesNothingMore() {
+        String email = uniqueEmail();
+        String userId = (String) register(email, PASSWORD).getBody().get("id");
+        UserDeactivated payload = new UserDeactivated(userId, Instant.now());
+
+        deactivated.handle(payload, eventOf(userId));
+        deactivated.handle(payload, eventOf(userId));
+
+        assertThat(login(email, PASSWORD).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void aDeactivationOfAnUnknownUserIsIgnoredInsteadOfFailing() {
+        deactivated.handle(new UserDeactivated("u-999999", Instant.now()), eventOf("u-999999"));
+        deactivated.handle(new UserDeactivated("no-es-un-usuario", Instant.now()), eventOf("x"));
+    }
+
+    @Test
+    void deactivatingOneUserDoesNotAffectTheOthers() {
+        String other = uniqueEmail();
+        register(other, PASSWORD);
+        String email = uniqueEmail();
+        String userId = (String) register(email, PASSWORD).getBody().get("id");
+
+        deactivated.handle(new UserDeactivated(userId, Instant.now()), eventOf(userId));
+
+        assertThat(login(other, PASSWORD).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void validateAcceptsServiceTokensThatAreNotUsers() {
+        String serviceToken = tokens.generate("svc-expiration", Role.ADMIN);
+
+        assertThat(get("/validate", serviceToken).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
     // --- alta de usuarios con rol ---
 
     @Test
@@ -244,6 +322,10 @@ class IdentityApiTest extends AbstractIntegrationTest {
     private static String tokenOf(ResponseEntity<Map> loginResponse) {
         assertThat(loginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         return (String) loginResponse.getBody().get("token");
+    }
+
+    private static EventEnvelope eventOf(String userId) {
+        return EventEnvelope.of("profiles-service", new UserDeactivated(userId, Instant.now()), "c-test");
     }
 
     private static String uniqueEmail() {

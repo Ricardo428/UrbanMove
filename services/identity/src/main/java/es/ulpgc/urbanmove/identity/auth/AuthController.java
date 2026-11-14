@@ -66,6 +66,10 @@ public class AuthController {
         }
         try {
             AuthenticatedUser user = tokens.parse(authorization.substring(BEARER.length()).trim());
+            if (!auth.isActive(user.userId())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ValidateResponse.invalid("Usuario dado de baja o inexistente"));
+            }
             return ResponseEntity.ok(ValidateResponse.ok(user.userId(), user.role().name()));
         } catch (InvalidTokenException e) {
             return unauthorized();

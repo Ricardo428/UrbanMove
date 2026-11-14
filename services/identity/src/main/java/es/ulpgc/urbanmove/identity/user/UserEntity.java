@@ -29,6 +29,10 @@ public class UserEntity {
     @Column(nullable = false)
     private Role role;
 
+    /** Solo cambia con {@link UserRepository#disable(Long)}: una baja no se deshace con un save. */
+    @Column(nullable = false, updatable = false)
+    private boolean enabled = true;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -61,6 +65,10 @@ public class UserEntity {
 
     public Role getRole() {
         return role;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
     }
 
     public Instant getCreatedAt() {

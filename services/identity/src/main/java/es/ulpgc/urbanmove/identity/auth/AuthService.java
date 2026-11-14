@@ -52,8 +52,22 @@ public class AuthService {
         UserEntity user = users.findByEmail(normalize(email))
                 .filter(found -> encoder.matches(password, found.getPasswordHash()))
                 .orElseThrow(() -> ApiException.unauthorized("Credenciales incorrectas"));
+        // Se comprueba después de la contraseña: quien no la conoce no averigua si la cuenta existe.
+        if (!user.isEnabled()) {
+            throw ApiException.forbidden("La cuenta está dada de baja");
+        }
         String token = tokens.generate(user.publicId(), user.getRole());
         return new LoginResponse(token, user.getRole().name(), tokens.getExpirationSeconds());
+    }
+
+    /**
+     * Si el titular del token puede seguir usándolo. Un usuario (u-1001) debe existir y no estar dado de baja.
+     * Un token de servicio (svc-reservations, ADR-006) no es un usuario de esta tabla y no se comprueba.
+     */
+    public boolean isActive(String subject) {
+        return UserIds.parse(subject)
+                .map(id -> users.findById(id).map(UserEntity::isEnabled).orElse(false))
+                .orElse(true);
     }
 
     public boolean emailExists(String email) {

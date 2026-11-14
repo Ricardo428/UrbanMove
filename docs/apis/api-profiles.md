@@ -94,4 +94,4 @@ Gestiona la información personal de los usuarios y sus preferencias. Requiere q
 | `404 Not Found` | El usuario no tiene perfil. |
 | `409 Conflict` | El perfil ya estaba dado de baja. |
 
-**Evento emitido:** ninguno.
+**Evento emitido:** `UserDeactivated`. Identity lo consume y deshabilita la cuenta: el usuario ya no puede iniciar sesión (los tokens que ya tenía siguen valiendo hasta que expiran). Ver [ADR-009](../adr-009-baja-de-usuario.md).

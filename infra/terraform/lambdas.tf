@@ -76,3 +76,13 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.expiration_schedule[0].arn
 }
+
+# EventBridge invoca la Lambda de forma asíncrona y, por defecto, Lambda reintenta dos veces una invocación
+# fallida. Aquí sobran: la siguiente ejecución (un minuto después) vuelve a encontrar las reservas que
+# fallaron, y los reintentos solo repetirían las mismas llamadas y el mismo error en los logs.
+resource "aws_lambda_function_event_invoke_config" "expiration" {
+  count = local.deploy_expiration
+
+  function_name          = aws_lambda_function.expiration[0].function_name
+  maximum_retry_attempts = 0
+}

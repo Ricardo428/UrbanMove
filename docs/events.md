@@ -15,6 +15,7 @@ Todo evento que viaje por el bus (SNS/SQS) tendrá esta estructura básica:
 | Evento | Productor (Quién lo emite) | Consumidor (Quién lo escucha) | Descripción |
 | :--- | :--- | :--- | :--- |
 | `UserRegistered` | Identity | Data Lake | Alta de usuario. El perfil se completa después en Profiles. |
+| `UserDeactivated` | Profiles | Identity, Data Lake | Baja lógica del usuario. Identity le bloquea el login. |
 | `VehiclePurchased` | Inventory | Disponibilidad, Data Lake | Incorporación de nueva bici o patinete. |
 | `VehicleReserved` | Reservas | Historial, Data Lake | Reserva creada sobre un recurso. |
 | `ReservationCancelled` | Reservas | Disponibilidad, Historial, Data Lake | Reserva cancelada por el usuario. |
@@ -59,6 +60,22 @@ Los ejemplos muestran el evento completo. Todos los identificadores son de ejemp
     "userId": "u-1001",
     "role": "USER",
     "registeredAt": "2026-10-13T09:00:00Z"
+  }
+}
+```
+
+### UserDeactivated
+```json
+{
+  "eventId": "3f1c9a52-7b0e-4c1d-9a55-0e6d2f7a1b0e",
+  "timestamp": "2026-10-13T09:30:00Z",
+  "source": "profiles-service",
+  "type": "UserDeactivated",
+  "version": "v1",
+  "correlationId": "c-5d02b7e1",
+  "payload": {
+    "userId": "u-1001",
+    "deactivatedAt": "2026-10-13T09:30:00Z"
   }
 }
 ```

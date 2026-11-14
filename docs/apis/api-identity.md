@@ -107,8 +107,9 @@ Este servicio gestiona la autenticación, sesiones y roles (usuarios finales, ma
 | :--- | :--- |
 | `400 Bad Request` | Falta el email o la contraseña. |
 | `401 Unauthorized` | Credenciales incorrectas. |
+| `403 Forbidden` | Credenciales correctas, pero la cuenta está dada de baja (el usuario eliminó su perfil en Profiles). |
 
-**Evento emitido:** ninguno.
+**Evento emitido:** ninguno. La baja llega por el evento `UserDeactivated` (ver [events.md](../events.md)).
 
 ## 4. Validar Token (Uso interno de otros servicios)
 **Endpoint:** `GET /api/v1/identity/validate` \
@@ -137,6 +138,8 @@ Este servicio gestiona la autenticación, sesiones y roles (usuarios finales, ma
 | Código | Cuándo |
 | :--- | :--- |
 | `400 Bad Request` | Falta la cabecera `Authorization`. |
-| `401 Unauthorized` | El token ha expirado, tiene la firma incorrecta o está mal formado. |
+| `401 Unauthorized` | El token ha expirado, tiene la firma incorrecta o está mal formado, o su usuario está dado de baja. |
+
+Un token ya emitido sigue siendo válido en los demás servicios hasta que expira (1 hora), porque comprueban la firma sin consultar a Identity. Ver [ADR-009](../adr-009-baja-de-usuario.md).
 
 **Evento emitido:** ninguno.

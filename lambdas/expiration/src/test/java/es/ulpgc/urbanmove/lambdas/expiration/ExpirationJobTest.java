@@ -13,12 +13,19 @@ import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +42,7 @@ class ExpirationJobTest {
     private final Set<String> correlationIds = ConcurrentHashMap.newKeySet();
     private volatile int overdueStatus = 200;
     private volatile String overdueBody = "{\"reservationIds\":[]}";
+    private volatile Consumer<String> onExpire = reservationId -> { };
 
     @BeforeEach
     void startReservations() throws IOException {
@@ -111,6 +119,40 @@ class ExpirationJobTest {
     }
 
     @Test
+    void stopsStartingExpirationsWhenTheTimeBudgetRunsOutAndLeavesTheRestForTheNextRun() {
+        overdueBody = "{\"reservationIds\":[\"res-1\",\"res-2\",\"res-3\"]}";
+        MutableClock clock = new MutableClock(Instant.parse("2026-11-14T10:00:00Z"));
+        // Atender res-1 "tarda" 30 s, así que con un presupuesto de 20 s ya no se empieza ninguna más.
+        onExpire = reservationId -> clock.advance(Duration.ofSeconds(30));
+
+        ExpirationJob.Result result = job(clock, Duration.ofSeconds(20)).run(message -> { });
+
+        assertThat(result.expired()).isEqualTo(1);
+        assertThat(result.skipped()).isEqualTo(2);
+        assertThat(result.failed()).isEmpty();
+        assertThat(requests).containsExactly(
+                "GET /api/v1/reservations/overdue",
+                "POST /api/v1/reservations/res-1/expire");
+    }
+
+    @Test
+    void theTokenOutlivesTheWholeRunBudgetAndExpiresSoonAfter() {
+        overdueBody = "{\"reservationIds\":[\"res-1\"]}";
+        Instant now = Instant.parse("2026-11-14T10:00:00Z");
+
+        job(new MutableClock(now), ExpirationJob.DEFAULT_BUDGET).run(message -> { });
+
+        String token = authorizations.iterator().next().substring("Bearer ".length());
+        Claims claims = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .clock(() -> Date.from(now)).build().parseSignedClaims(token).getPayload();
+        Instant expiresAt = claims.getExpiration().toInstant();
+        // Cubre el presupuesto más una llamada en curso (el peor caso de una ejecución)...
+        assertThat(expiresAt).isAfter(now.plus(ExpirationJob.DEFAULT_BUDGET).plusSeconds(5));
+        // ...y no se queda válido mucho más que el timeout de la Lambda (60 s en Terraform).
+        assertThat(expiresAt).isBeforeOrEqualTo(now.plus(Duration.ofMinutes(2)));
+    }
+
+    @Test
     void failsIfReservationsRejectsTheListing() {
         overdueStatus = 403;
 
@@ -130,8 +172,41 @@ class ExpirationJobTest {
     }
 
     private ExpirationJob job() {
+        return job(Clock.systemUTC(), ExpirationJob.DEFAULT_BUDGET);
+    }
+
+    private ExpirationJob job(Clock clock, Duration budget) {
         return new ExpirationJob("http://127.0.0.1:" + reservations.getAddress().getPort(), SECRET,
-                HttpClient.newHttpClient(), Clock.systemUTC());
+                HttpClient.newHttpClient(), clock, budget);
+    }
+
+    /** Reloj que solo avanza cuando el test lo pide. */
+    private static final class MutableClock extends Clock {
+
+        private final AtomicReference<Instant> now;
+
+        MutableClock(Instant start) {
+            this.now = new AtomicReference<>(start);
+        }
+
+        void advance(Duration duration) {
+            now.updateAndGet(current -> current.plus(duration));
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now.get();
+        }
     }
 
     private void handle(HttpExchange exchange) throws IOException {
@@ -146,6 +221,7 @@ class ExpirationJobTest {
             body = overdueBody.getBytes(StandardCharsets.UTF_8);
         } else {
             String reservationId = path.split("/")[4];
+            onExpire.accept(reservationId);
             status = expireStatus.getOrDefault(reservationId, 200);
         }
         exchange.getResponseHeaders().add("Content-Type", "application/json");

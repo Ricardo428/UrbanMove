@@ -7,6 +7,7 @@ import es.ulpgc.urbanmove.events.payload.ReservationCancelled;
 import es.ulpgc.urbanmove.events.payload.ReservationExpired;
 import es.ulpgc.urbanmove.events.payload.RideFinished;
 import es.ulpgc.urbanmove.events.payload.RideStarted;
+import es.ulpgc.urbanmove.events.payload.UserDeactivated;
 import es.ulpgc.urbanmove.events.payload.UserRegistered;
 import es.ulpgc.urbanmove.events.payload.VehicleBatteryLow;
 import es.ulpgc.urbanmove.events.payload.VehiclePurchased;
@@ -23,6 +24,7 @@ import java.util.Optional;
 public enum EventType {
 
     USER_REGISTERED("UserRegistered", UserRegistered.class),
+    USER_DEACTIVATED("UserDeactivated", UserDeactivated.class),
     VEHICLE_PURCHASED("VehiclePurchased", VehiclePurchased.class),
     VEHICLE_RESERVED("VehicleReserved", VehicleReserved.class),
     RESERVATION_CANCELLED("ReservationCancelled", ReservationCancelled.class),

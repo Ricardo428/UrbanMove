@@ -20,3 +20,9 @@ urbanmove:
     # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
     jwt-secret: ${URBANMOVE_JWT_SECRET:}
     jwt-expiration-seconds: 3600
+  # Bus de eventos (libs/messaging): publica UserDeactivated; no consume eventos, así que no tiene cola.
+  # Sin topic, los eventos se quedan en la outbox hasta que se configure.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}

@@ -28,9 +28,11 @@ urbanmove:
       - /api/v1/identity/register
       - /api/v1/identity/login
       - /api/v1/identity/validate
-  # Bus de eventos (libs/messaging). Sin topic, los eventos se quedan en la outbox hasta que se configure.
+  # Bus de eventos (libs/messaging): publica UserRegistered y consume UserDeactivated.
+  # Sin topic, los eventos se quedan en la outbox hasta que se configure; sin cola, no consume.
   messaging:
     topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    queue-url: ${URBANMOVE_EVENTS_QUEUE_URL:}
     endpoint: ${AWS_ENDPOINT_URL:}
     region: ${AWS_REGION:us-east-1}
   identity:

@@ -112,3 +112,4 @@ El CI (`.github/workflows/ci.yml`) ejecuta `./mvnw verify` y comprueba el format
 - [ADR-006: token de servicio para las llamadas internas](docs/adr-006-token-de-servicio.md)
 - [ADR-007: expiración de reservas con una Lambda programada](docs/adr-007-lambda-expiracion.md)
 - [ADR-008: despliegue en local con Docker Compose y LocalStack](docs/adr-008-despliegue-local.md)
+- [ADR-009: baja de usuario entre Profiles e Identity](docs/adr-009-baja-de-usuario.md)
