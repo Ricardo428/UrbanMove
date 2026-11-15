@@ -72,3 +72,21 @@ variable "jwt_secret" {
   default     = null
   sensitive   = true
 }
+
+variable "deploy_ingest_lambda" {
+  description = "true para crear la Lambda que copia los eventos de la cola datalake-ingest a la capa raw del Data Lake. Necesita el jar compilado."
+  type        = bool
+  default     = false
+}
+
+variable "ingest_lambda_jar" {
+  description = "Ruta del jar de la Lambda de ingesta. Si es null se usa lambdas/ingestion/target/ingestion-lambda.jar."
+  type        = string
+  default     = null
+}
+
+variable "lambda_aws_endpoint" {
+  description = "Endpoint de AWS al que llaman las Lambdas. En LocalStack es http://localstack:4566 (el nombre del contenedor en la red de Compose); en AWS se deja en null y usan el S3 real."
+  type        = string
+  default     = null
+}

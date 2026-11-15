@@ -36,5 +36,6 @@
         <module>services/profiles</module>
         <module>services/analytics</module>
         <module>lambdas/expiration</module>
+        <module>lambdas/ingestion</module>
     </modules>
 </project>

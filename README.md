@@ -66,7 +66,7 @@ Sistema distribuido de movilidad urbana (bicicletas y patinetes eléctricos). Pr
      -d '{"email":"usuario@example.com","password":"Contrasena123"}'
    ```
 
-6. Opcional: despliega la Lambda que caduca las reservas vencidas cada minuto. Necesita los servicios del paso anterior en marcha. Está explicada en [infra/terraform/README.md](infra/terraform/README.md#lambda-de-expiración-opcional).
+6. Opcional: despliega las Lambdas. La de expiración caduca las reservas vencidas cada minuto y necesita los servicios del paso anterior en marcha ([explicación](infra/terraform/README.md#lambda-de-expiración-opcional)). La de ingesta copia cada evento a la capa `raw/` del Data Lake ([explicación](infra/terraform/README.md#lambda-de-ingesta-al-data-lake-opcional)).
 
 Para empezar de cero, incluidas las bases de datos, usa `docker compose down -v`. El script de PostgreSQL solo se ejecuta cuando se crea el volumen. Tras un `down -v`, borra también `infra/terraform/terraform.tfstate` y vuelve a ejecutar `terraform apply`, porque LocalStack habrá perdido los recursos.
 
@@ -113,3 +113,4 @@ El CI (`.github/workflows/ci.yml`) ejecuta `./mvnw verify` y comprueba el format
 - [ADR-007: expiración de reservas con una Lambda programada](docs/adr-007-lambda-expiracion.md)
 - [ADR-008: despliegue en local con Docker Compose y LocalStack](docs/adr-008-despliegue-local.md)
 - [ADR-009: baja de usuario entre Profiles e Identity](docs/adr-009-baja-de-usuario.md)
+- [ADR-010: ingesta de eventos al Data Lake con una Lambda sobre SQS](docs/adr-010-ingesta-data-lake.md)

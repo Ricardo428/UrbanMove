@@ -11,9 +11,19 @@ resource "aws_sqs_queue" "dlq" {
   name     = "${var.name_prefix}-${each.key}-dlq"
 }
 
+# SQS exige que el tiempo de visibilidad de una cola leída por Lambda no sea menor que el timeout de la
+# función (y AWS recomienda seis veces más). Las demás colas las lee un servicio y se quedan con el valor por defecto.
+locals {
+  visibility_timeouts = {
+    "datalake-ingest" = 180
+  }
+}
+
 resource "aws_sqs_queue" "queue" {
   for_each = var.consumers
   name     = "${var.name_prefix}-${each.key}"
+
+  visibility_timeout_seconds = lookup(local.visibility_timeouts, each.key, 30)
 
   # Tras max_receive_count intentos fallidos, el mensaje pasa a la DLQ.
   redrive_policy = jsonencode({

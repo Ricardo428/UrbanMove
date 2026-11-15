@@ -8,7 +8,7 @@ Define el bus de eventos (un topic SNS y una cola SQS con su dead-letter queue p
 | `providers.tf` | Proveedor de AWS. Con `use_localstack = true` apunta a LocalStack. |
 | `variables.tf` | Variables y valores por defecto. |
 | `main.tf` | Topic, colas, políticas, suscripciones y bucket. |
-| `lambdas.tf` | Lambda de expiración de reservas y su programación en EventBridge (solo con `deploy_expiration_lambda = true`). |
+| `lambdas.tf` | Lambda de expiración de reservas y su programación en EventBridge (solo con `deploy_expiration_lambda = true`), y Lambda de ingesta al Data Lake con su conexión a la cola (solo con `deploy_ingest_lambda = true`). |
 | `outputs.tf` | ARN del topic, URLs de colas y nombre del bucket. |
 | `localstack.tfvars` | Valores para el uso local. |
 
@@ -45,6 +45,26 @@ docker logs urbanmove-reservations --since 3m | grep lambda-expiration
 ```
 
 Si reservations no está arrancada, la Lambda falla y lo reintenta al minuto siguiente.
+
+### Lambda de ingesta al Data Lake (opcional)
+
+La Lambda copia cada evento de la cola `urbanmove-datalake-ingest` a la capa `raw/` del bucket (ver [ADR-010](../../docs/adr-010-ingesta-data-lake.md)). No necesita secretos. Desde la raíz del repositorio:
+
+```
+./mvnw package -pl lambdas/ingestion -am -DskipTests
+cd infra/terraform
+terraform apply -var-file=localstack.tfvars -var deploy_ingest_lambda=true
+```
+
+Se pueden desplegar las dos Lambdas a la vez con ambas variables. Para comprobarlo, genera algún evento (registra un usuario, por ejemplo) y mira el bucket:
+
+```
+docker exec urbanmove-localstack awslocal s3 ls s3://urbanmove-datalake/raw/ --recursive
+```
+
+Verás una clave como `raw/event_date=2026-11-14/event_type=UserRegistered/source=identity-service/<eventId>.json`. Los mensajes que la Lambda no puede guardar acaban, tras 3 intentos, en la cola `urbanmove-datalake-ingest-dlq`.
+
+Los eventos que ya estaban en la cola antes de crear la Lambda se procesan al desplegarla.
 
 ## En AWS Academy
 

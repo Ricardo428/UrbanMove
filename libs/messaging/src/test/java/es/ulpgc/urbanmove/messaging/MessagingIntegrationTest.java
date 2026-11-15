@@ -229,6 +229,30 @@ class MessagingIntegrationTest {
         }
     }
 
+    @Test
+    void aHandlerThatKeepsFailingEndsUpInTheDeadLetterQueueAndLeavesNoTraceAsProcessed() {
+        String userId = newUserId();
+        handler.alwaysFail.add(userId);
+        EventEnvelope event = EventEnvelope.of("identity-service", registered(userId), "c-poison");
+
+        try (SqsClient sqs = sqsClient()) {
+            sqs.sendMessage(r -> r.queueUrl(QUEUE_URL).messageBody(EventJson.write(event)));
+
+            await().atMost(Duration.ofSeconds(30)).until(() -> {
+                List<Message> dead = sqs.receiveMessage(r -> r.queueUrl(DLQ_URL).maxNumberOfMessages(10)
+                        .waitTimeSeconds(1)).messages();
+                return dead.stream().anyMatch(message -> message.body().contains(event.eventId().toString()));
+            });
+        }
+
+        // La cola de la prueba tiene maxReceiveCount = 2 (la de Terraform, 3): el handler lo intentó esas veces.
+        assertThat(handler.attempts(userId)).isEqualTo(2);
+        assertThat(handler.successes(userId)).isZero();
+        // Cada intento fallido se deshizo con su transacción: el evento no consta como procesado.
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM processed_events WHERE event_id = ?",
+                Integer.class, event.eventId())).isZero();
+    }
+
     private static UserRegistered registered(String userId) {
         return new UserRegistered(userId, "USER", Instant.now());
     }
@@ -261,7 +285,7 @@ class MessagingIntegrationTest {
         }
     }
 
-    /** Handler de prueba: anota cada intento y puede fallar una vez a propósito para un usuario. */
+    /** Handler de prueba: anota cada intento y puede fallar a propósito (una vez o siempre) para un usuario. */
     static class RecordingHandler implements EventHandler<UserRegistered> {
 
         final Map<String, AtomicInteger> attempts = new ConcurrentHashMap<>();
@@ -269,6 +293,7 @@ class MessagingIntegrationTest {
         final Map<String, EventEnvelope> received = new ConcurrentHashMap<>();
         final Map<String, String> correlationSeen = new ConcurrentHashMap<>();
         final Set<String> failOnce = ConcurrentHashMap.newKeySet();
+        final Set<String> alwaysFail = ConcurrentHashMap.newKeySet();
 
         @Override
         public Class<UserRegistered> payloadType() {
@@ -278,7 +303,7 @@ class MessagingIntegrationTest {
         @Override
         public void handle(UserRegistered payload, EventEnvelope event) {
             attempts.computeIfAbsent(payload.userId(), id -> new AtomicInteger()).incrementAndGet();
-            if (failOnce.remove(payload.userId())) {
+            if (failOnce.remove(payload.userId()) || alwaysFail.contains(payload.userId())) {
                 throw new IllegalStateException("Fallo simulado");
             }
             received.put(payload.userId(), event);
