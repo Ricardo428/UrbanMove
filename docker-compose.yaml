@@ -117,6 +117,30 @@ services:
       postgres:
         condition: service_healthy
 
+  history:
+    profiles: ["apps"]
+    container_name: urbanmove-history
+    build:
+      context: .
+      dockerfile: services/history/Dockerfile
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/history_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-urbanmove}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-urbanmove}
+      URBANMOVE_JWT_SECRET: ${JWT_SECRET:-}
+      # Solo consume: reservas y viajes llegan por su cola (Terraform). No publica eventos.
+      URBANMOVE_EVENTS_TOPIC_ARN: arn:aws:sns:${AWS_REGION:-us-east-1}:000000000000:urbanmove-events
+      URBANMOVE_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/urbanmove-history
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   reservations:
     profiles: ["apps"]
     container_name: urbanmove-reservations

@@ -1,0 +1,28 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: history
+  datasource:
+    url: jdbc:postgresql://localhost:5432/history_db
+    username: ${DB_USER:urbanmove}
+    password: ${DB_PASSWORD:urbanmove}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+urbanmove:
+  security:
+    # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
+    jwt-secret: ${URBANMOVE_JWT_SECRET:}
+    jwt-expiration-seconds: 3600
+  # Bus de eventos (libs/messaging). History no publica nada: solo lee su cola. Sin cola, no recibe eventos.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    queue-url: ${URBANMOVE_EVENTS_QUEUE_URL:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
