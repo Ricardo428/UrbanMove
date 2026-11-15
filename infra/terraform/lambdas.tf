@@ -134,7 +134,7 @@ resource "aws_lambda_event_source_mapping" "ingest" {
 
   lifecycle {
     precondition {
-      condition     = contains(keys(var.consumers), "datalake-ingest")
+      condition     = contains(var.consumers, "datalake-ingest")
       error_message = "consumers debe incluir datalake-ingest: es la cola que lee la Lambda de ingesta."
     }
   }
