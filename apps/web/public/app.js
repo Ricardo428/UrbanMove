@@ -4,6 +4,7 @@ import { session } from "./session.js";
 import { show, showError } from "./ui.js";
 import "./vehicles.js"; // la pantalla de vehículos se gestiona sola
 import "./profile.js"; // y la del perfil también
+import "./history.js"; // y la del historial
 
 const loggedOut = document.getElementById("logged-out");
 const loggedIn = document.getElementById("logged-in");

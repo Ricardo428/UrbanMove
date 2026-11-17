@@ -12,6 +12,7 @@
         fieldset { border: 0; margin: 0; padding: 0; }
         .result { min-height: 1.5em; color: #1b6e2d; }
         .result.error { color: #b3261e; }
+        .hint { font-size: 0.9em; color: #555; }
     </style>
 </head>
 <body>
@@ -63,6 +64,13 @@
         </form>
         <ul id="vehicle-list"></ul>
         <p id="vehicles-result" class="result" aria-live="polite"></p>
+
+        <h2>Mi historial</h2>
+        <!-- History se entera por eventos: lo último tarda unos segundos en llegar. -->
+        <p class="hint">Lo último puede tardar unos segundos en aparecer.</p>
+        <button id="history-refresh" type="button">Actualizar historial</button>
+        <ol id="history-list"></ol>
+        <p id="history-result" class="result" aria-live="polite"></p>
 
         <h2>Tu perfil</h2>
         <p id="profile-status"></p>

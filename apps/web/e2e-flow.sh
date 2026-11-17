@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Flujo de usuario de extremo a extremo (sección 11.1 del enunciado), a través del gateway como la web,
-# y la evidencia de lo que pasa detrás: eventos en las outbox, quién los consume y colas del Data Lake e historial.
+# y la evidencia de lo que pasa detrás: eventos en las outbox, quién los consume, la cola del Data Lake y el historial.
 # Cada paso lleva su propio X-Correlation-Id (e2e-<hora>-<paso>) para seguirlo por los servicios y los logs.
 # Requiere el sistema levantado, terraform apply y seed.sh. Uso: apps/web/e2e-flow.sh [url-base]
 set -u
@@ -58,7 +58,6 @@ wait_for() {
 }
 
 DATALAKE_BEFORE=$(queue_size datalake-ingest)
-HISTORY_BEFORE=$(queue_size history)
 
 echo "1. El usuario se registra e inicia sesión (identity)"
 EMAIL="e2e-$(date +%s)@urbanmove.test"
@@ -103,7 +102,7 @@ expect 200 "fin de $RIDE en $DESTINATION: $MINUTES min, $COST €"
 wait_for "RideFinished → availability deja $VEHICLE libre" "/api/v1/availability/$VEHICLE" '"status":"AVAILABLE"' "$TOKEN"
 wait_for "  y en la zona de destino $DESTINATION" "/api/v1/availability/$VEHICLE" "\"zoneId\":\"$DESTINATION\"" "$TOKEN"
 
-echo "6. Eventos generados: outbox de cada productor, consumo y colas del historial y del Data Lake"
+echo "6. Eventos generados: outbox de cada productor, quién los consume y la cola del Data Lake"
 sleep 2 # deja al relay publicar lo último
 # events <base> <paso> <tipo>: el evento de ese paso está en la outbox del productor y ya se publicó.
 events() {
@@ -119,33 +118,56 @@ events() {
     fi
 }
 # consumed <base> <tipo>: el consumidor guardó el eventId en processed_events (idempotencia).
+# Cada consumidor lee su cola a su ritmo, así que se le dan unos segundos.
 consumed() {
-    if [ -n "$EVENT_ID" ] && [ -n "$(sql "$1" "SELECT 1 FROM processed_events WHERE event_id = '$EVENT_ID'")" ]; then
-        ok "  consumido por ${1%_db} (processed_events)"
-    else
-        fail "  $2 no aparece en processed_events de $1"
+    if [ -n "$EVENT_ID" ]; then
+        for _ in $(seq 1 10); do
+            if [ -n "$(sql "$1" "SELECT 1 FROM processed_events WHERE event_id = '$EVENT_ID'")" ]; then
+                ok "  consumido por ${1%_db} (processed_events)"
+                return
+            fi
+            sleep 1
+        done
     fi
+    fail "  $2 no aparece en processed_events de $1"
 }
 
+# Un mismo evento lo consumen varios servicios, cada uno desde su propia cola.
 events identity_db 1 UserRegistered
+USER_REGISTERED_EVENT="$EVENT_ID"
 events reservations_db 4 VehicleReserved
+consumed history_db VehicleReserved
 events rides_db 6 RideStarted
 consumed reservations_db RideStarted
+consumed history_db RideStarted
 events rides_db 7 RideFinished
+RIDE_FINISHED_EVENT="$EVENT_ID"
 consumed availability_db RideFinished
+consumed history_db RideFinished
 
+# La Lambda de ingesta no está desplegada en local: sus mensajes se acumulan en la cola.
 DATALAKE_AFTER=$(queue_size datalake-ingest)
-HISTORY_AFTER=$(queue_size history)
 if [ -n "$DATALAKE_AFTER" ] && [ $((DATALAKE_AFTER - DATALAKE_BEFORE)) -ge 4 ]; then
     ok "cola urbanmove-datalake-ingest: $DATALAKE_BEFORE → $DATALAKE_AFTER mensajes (esperan al consumidor del Data Lake)"
 else
     fail "cola urbanmove-datalake-ingest: '$DATALAKE_BEFORE' → '$DATALAKE_AFTER', se esperaban al menos 4 más"
 fi
-if [ -n "$HISTORY_AFTER" ] && [ $((HISTORY_AFTER - HISTORY_BEFORE)) -ge 3 ]; then
-    ok "cola urbanmove-history: $HISTORY_BEFORE → $HISTORY_AFTER mensajes (esperan al servicio history)"
-else
-    fail "cola urbanmove-history: '$HISTORY_BEFORE' → '$HISTORY_AFTER', se esperaban al menos 3 más"
-fi
+
+echo "7. Consulta su historial (history, alimentado por eventos)"
+wait_for "RideFinished → history lo guarda en el historial del usuario" \
+    "/api/v1/history/me" "$RIDE_FINISHED_EVENT" "$TOKEN"
+call 8 GET /api/v1/history/me "" "$TOKEN"
+expect 200 "historial del usuario"
+# field devuelve el primer "type": el de la entrada más reciente.
+[ "$(field type)" = "RideFinished" ] && ok "  lo más reciente primero (orden por occurredAt)" \
+    || fail "  la primera entrada es $(field type), se esperaba RideFinished"
+ENTRIES=$(printf '%s' "$BODY" | grep -o '"eventId"' | wc -l)
+[ "$ENTRIES" -eq 3 ] && ok "  3 entradas: VehicleReserved, RideStarted y RideFinished" \
+    || fail "  $ENTRIES entradas, se esperaban 3"
+case "$BODY" in
+    *"$USER_REGISTERED_EVENT"*) fail "  UserRegistered está en el historial, y history no lo consume" ;;
+    *) ok "  sin UserRegistered: history no consume ese evento" ;;
+esac
 
 echo
 echo "Para seguir una petición en los logs: docker compose logs | grep $RUN-6"
