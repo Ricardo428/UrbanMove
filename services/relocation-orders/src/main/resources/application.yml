@@ -1,0 +1,37 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: relocation-orders
+  datasource:
+    url: jdbc:postgresql://localhost:5432/relocation_orders_db
+    username: ${DB_USER:urbanmove}
+    password: ${DB_PASSWORD:urbanmove}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+urbanmove:
+  security:
+    # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
+    # Con ella se validan los tokens de los operarios y se firma el token de servicio para availability (ADR-006).
+    jwt-secret: ${URBANMOVE_JWT_SECRET:}
+    jwt-expiration-seconds: 3600
+  # Bus de eventos (libs/messaging): consume DemandHotspotDetected; publica RelocationOrderCreated y RelocationOrderCompleted.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    queue-url: ${URBANMOVE_EVENTS_QUEUE_URL:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
+  relocation:
+    # Recursos disponibles que se quieren en la zona destino, y los que deben quedar en la zona origen.
+    target-available: ${RELOCATION_TARGET_AVAILABLE:6}
+    min-left-in-origin: ${RELOCATION_MIN_LEFT_IN_ORIGIN:2}
+    availability:
+      url: ${AVAILABILITY_URL:http://localhost:8083}
+      # Si availability no responde en este tiempo: en el consumidor, SQS reintenta; en pickup/complete, 503.
+      timeout: 3s

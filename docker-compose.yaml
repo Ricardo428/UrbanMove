@@ -141,6 +141,36 @@ services:
       postgres:
         condition: service_healthy
 
+  relocation-orders:
+    profiles: ["apps"]
+    container_name: urbanmove-relocation-orders
+    build:
+      context: .
+      dockerfile: services/relocation-orders/Dockerfile
+    ports:
+      - "8091:8091"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/relocation_orders_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-urbanmove}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-urbanmove}
+      # Con el mismo secreto valida a los operarios y firma su token de servicio para availability (ADR-006).
+      URBANMOVE_JWT_SECRET: ${JWT_SECRET:-}
+      AVAILABILITY_URL: http://availability:8083
+      RELOCATION_TARGET_AVAILABLE: ${RELOCATION_TARGET_AVAILABLE:-6}
+      RELOCATION_MIN_LEFT_IN_ORIGIN: ${RELOCATION_MIN_LEFT_IN_ORIGIN:-2}
+      # Consume DemandHotspotDetected por su cola (Terraform); publica RelocationOrderCreated y RelocationOrderCompleted.
+      URBANMOVE_EVENTS_TOPIC_ARN: arn:aws:sns:${AWS_REGION:-us-east-1}:000000000000:urbanmove-events
+      URBANMOVE_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/urbanmove-relocation-orders
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      availability:
+        condition: service_started
+
   reservations:
     profiles: ["apps"]
     container_name: urbanmove-reservations
