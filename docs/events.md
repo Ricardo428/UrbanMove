@@ -21,7 +21,7 @@ Todo evento que viaje por el bus (SNS/SQS) tendrá esta estructura básica:
 | `ReservationCancelled` | Reservas | Disponibilidad, Historial, Data Lake | Reserva cancelada por el usuario. |
 | `ReservationExpired` | Reservas (a petición de la Lambda Expiración) | Disponibilidad, Historial, Data Lake | Reserva liberada por timeout. |
 | `RideStarted` | Viajes | Reservas, Historial, Data Lake | Inicio de uso de un recurso. Reservas marca como usada la reserva asociada. |
-| `RideFinished` | Viajes | Disponibilidad, Historial, Data Lake | Finalización del viaje. |
+| `RideFinished` | Viajes | Disponibilidad, Historial, Lambda Detección Mantenimiento, Data Lake | Finalización del viaje. La Lambda emite `VehicleBatteryLow` si la batería está por debajo del umbral ([ADR-011](adr-011-lambda-deteccion-mantenimiento.md)). |
 | `VehicleBatteryLow` | Lambda Detección Mantenimiento | Órdenes Mantenimiento, Historial, Data Lake | Detección de batería baja. |
 | `VehicleWithdrawnForMaintenance` | Órdenes Mantenimiento | Historial, Data Lake | Recurso retirado de la vía pública. |
 | `VehicleReturnedToService` | Órdenes Mantenimiento | Historial, Data Lake | Recurso vuelve a estar disponible. |
