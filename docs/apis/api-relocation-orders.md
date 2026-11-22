@@ -115,10 +115,10 @@ Si Availability no responde, el handler falla, se deshace la transacción y SQS 
 
 1. **Reclama la orden:** `OPEN → IN_PROGRESS` con `operator_id` = el usuario del token, en un `UPDATE` condicional. Si otro operario la reclamó antes, cambia 0 filas y se rechaza sin tocar ningún recurso.
 2. **Retira cada recurso**, fuera de la transacción:
-   1. `GET /api/v1/availability/{vehicleId}` para comprobar que es del tipo y de la zona origen de la orden. El `PUT /state` de Availability solo mira el estado, no la zona.
+   1. `GET /api/v1/availability/{vehicleId}` para comprobar que es del tipo y de la zona origen de la orden, y que está `AVAILABLE` (o `WITHDRAWN` y ya reclamado por esta misma orden, si es un reintento). El `PUT /state` de Availability solo mira el estado, no la zona, y es idempotente: sin esta comprobación, un recurso que Órdenes Mantenimiento ya retiró pasaría por bueno.
    2. **Reclama el recurso** insertándolo en `relocation_order_vehicles`. Un índice único parcial impide que esté en dos órdenes activas: si otra orden lo tiene, se rechaza sin llamar a Availability. Hace falta porque el `PUT /state` es idempotente y no distingue "lo retiré yo" de "lo retiró otra orden".
-   3. `PUT /api/v1/availability/{vehicleId}/state` con `WITHDRAWN`. Si Availability lo rechaza, se borra la fila reclamada.
-3. **Resultado parcial:** si un recurso falla (por ejemplo, alguien lo reservó un instante antes), se retiran los demás y la respuesta dice cuál falló. Si no se retira ninguno, la orden vuelve a `OPEN`.
+   3. `PUT /api/v1/availability/{vehicleId}/state` con `WITHDRAWN`. Si Availability lo rechaza, se borra la fila reclamada. Si no responde, la fila se mantiene: no se sabe si el `PUT` se aplicó, y al repetir la petición el mismo `PUT` (idempotente) lo confirma.
+3. **Resultado parcial:** si un recurso falla (por ejemplo, alguien lo reservó un instante antes), se retiran los demás y la respuesta dice cuál falló. Si no se retira ninguno y todos se rechazaron con seguridad, la orden vuelve a `OPEN`. Si alguno quedó sin respuesta de Availability, la orden sigue `IN_PROGRESS` del mismo operario para que pueda repetir la petición.
 
 **Limitación conocida:** si Órdenes Mantenimiento retira el mismo recurso justo entre el `GET` y el `PUT`, el `PUT` responde bien porque el recurso ya está `WITHDRAWN`. Exige que pase de `AVAILABLE` a `LOW_BATTERY` y a `WITHDRAWN` en ese instante. Cerrarlo del todo requeriría que Availability guardara quién retiró cada recurso.
 
@@ -151,7 +151,7 @@ Si Availability no responde, el handler falla, se deshace la transacción y SQS 
 | `403 Forbidden` | El token no es de `MAINTENANCE`, o la orden la recogió otro operario. |
 | `404 Not Found` | La orden no existe. |
 | `409 Conflict` | La orden no está `OPEN` (ni `IN_PROGRESS` del mismo operario), o no se pudo retirar ningún recurso. |
-| `503 Service Unavailable` | Availability no responde y no se retiró ningún recurso. La orden vuelve a `OPEN`. |
+| `503 Service Unavailable` | Availability no responde y no se retiró ningún recurso. La orden sigue `IN_PROGRESS` del mismo operario, con los recursos sin respuesta reclamados, y la petición se puede repetir. |
 
 **Evento emitido:** ninguno.
 
@@ -159,10 +159,18 @@ Si Availability no responde, el handler falla, se deshace la transacción y SQS 
 **Endpoint:** `POST /api/v1/relocation-orders/{orderId}/complete` (rol `MAINTENANCE`) \
 **Descripción:** El operario deja los recursos en la zona destino. Solo puede completarla quien la recogió: se compara el `operator_id` guardado en la orden con el usuario del token. Pasos:
 
-1. Para cada recurso retirado, `PUT /api/v1/availability/{vehicleId}/state` con `READY_FOR_SERVICE` y `zoneId` = la zona destino, y después con `AVAILABLE`.
+1. Para cada recurso reclamado, `GET /api/v1/availability/{vehicleId}`, y según cómo esté:
+   - `WITHDRAWN`: `PUT /state` con `READY_FOR_SERVICE` y `zoneId` = la zona destino, y después con `AVAILABLE`.
+   - `READY_FOR_SERVICE` en la zona destino: solo `PUT /state` con `AVAILABLE` (un intento anterior se cortó a mitad).
+   - `AVAILABLE`, `RESERVED` o `IN_USE` en la zona destino: ya se entregó en un intento anterior; no se llama al `PUT`.
+   - Cualquier otro estado o zona: `409`.
+
+   Hace falta el `GET` porque `READY_FOR_SERVICE` solo se alcanza desde `WITHDRAWN`, `CHARGING` o `REPAIRING` ([states.md](../states.md)): pedirlo otra vez para un recurso ya `AVAILABLE` no es repetir el mismo estado, y daría un `409`. Además, entre un intento y el reintento un usuario puede haber reservado el recurso ya entregado.
 2. En una transacción: `IN_PROGRESS → COMPLETED` con un `UPDATE` condicional, sus recursos dejan de estar activos en `relocation_order_vehicles` (pueden entrar en otra orden), y `RelocationOrderCompleted` en el outbox.
 
-Si falla a mitad, la orden sigue `IN_PROGRESS` y el operario repite la petición. Los recursos que ya estaban `AVAILABLE` en la zona destino responden sin cambiar nada (el `PUT` es idempotente). El evento solo se emite cuando todos están `AVAILABLE`.
+Si falla a mitad, la orden sigue `IN_PROGRESS` y el operario repite la petición: cada recurso continúa desde el estado en que se quedó. El evento solo se emite cuando todos están entregados.
+
+**Reintento:** si la orden ya está `COMPLETED` por el mismo operario (por ejemplo, se perdió la respuesta), se devuelve la orden sin llamar a Availability ni emitir el evento otra vez. El `UPDATE` condicional `IN_PROGRESS → COMPLETED` solo cambia una fila una vez, así que nunca hay dos `RelocationOrderCompleted` de la misma orden.
 
 **Respuesta Exitosa (200 OK):**
 ```json
@@ -182,7 +190,7 @@ Si falla a mitad, la orden sigue `IN_PROGRESS` y el operario repite la petición
 | `401 Unauthorized` | Falta el token o no es válido. |
 | `403 Forbidden` | El token no es de `MAINTENANCE`, o la orden la recogió otro operario. |
 | `404 Not Found` | La orden no existe. |
-| `409 Conflict` | La orden no está `IN_PROGRESS`. |
+| `409 Conflict` | La orden no está `IN_PROGRESS` (ni `COMPLETED` por el mismo operario), no tiene recursos retirados (si en `/pickup` no respondió ningún `GET`), o un recurso no está como se espera o Availability rechaza su transición. |
 | `503 Service Unavailable` | Availability no responde. La orden sigue `IN_PROGRESS` y se puede repetir. |
 
 **Evento emitido:** `RelocationOrderCompleted`.

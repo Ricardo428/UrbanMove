@@ -1,13 +1,16 @@
 package es.ulpgc.urbanmove.relocation;
 
+import es.ulpgc.urbanmove.relocation.availability.AvailabilityClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
  * Base de las pruebas de integración: un PostgreSQL real en Docker, compartido por todas las clases de test.
- * La clave JWT es solo de test. Sin cola configurada, el consumidor de eventos no arranca, y sin topic el relay
+ * Availability se sustituye por un doble (su cliente HTTP tiene su propio test). La clave JWT es solo de test.
+ * Sin cola configurada, el consumidor de eventos no arranca, y sin topic el relay
  * no publica: los handlers se prueban llamándolos directamente y los eventos se miran en outbox_events.
  */
 @SpringBootTest(
@@ -20,6 +23,9 @@ public abstract class AbstractIntegrationTest {
     static {
         POSTGRES.start();
     }
+
+    @MockBean
+    protected AvailabilityClient availability;
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
