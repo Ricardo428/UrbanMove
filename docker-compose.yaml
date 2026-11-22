@@ -141,6 +141,35 @@ services:
       postgres:
         condition: service_healthy
 
+  maintenance-orders:
+    profiles: ["apps"]
+    container_name: urbanmove-maintenance-orders
+    build:
+      context: .
+      dockerfile: services/maintenance-orders/Dockerfile
+    ports:
+      - "8092:8092"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/maintenance_orders_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-urbanmove}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-urbanmove}
+      # Con el mismo secreto valida a los operarios y firma su token de servicio para availability (ADR-006).
+      URBANMOVE_JWT_SECRET: ${JWT_SECRET:-}
+      AVAILABILITY_URL: http://availability:8083
+      # Consume VehicleBatteryLow por su cola (Terraform); publica VehicleWithdrawnForMaintenance y
+      # VehicleReturnedToService.
+      URBANMOVE_EVENTS_TOPIC_ARN: arn:aws:sns:${AWS_REGION:-us-east-1}:000000000000:urbanmove-events
+      URBANMOVE_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/urbanmove-maintenance-orders
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      availability:
+        condition: service_started
+
   relocation-orders:
     profiles: ["apps"]
     container_name: urbanmove-relocation-orders

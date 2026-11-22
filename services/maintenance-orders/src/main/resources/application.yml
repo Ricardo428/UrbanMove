@@ -1,0 +1,35 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: maintenance-orders
+  datasource:
+    url: jdbc:postgresql://localhost:5432/maintenance_orders_db
+    username: ${DB_USER:urbanmove}
+    password: ${DB_PASSWORD:urbanmove}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+urbanmove:
+  security:
+    # La clave de firma llega por variable de entorno (mínimo 32 caracteres). No se escribe aquí.
+    # Con ella se validan los tokens de los operarios y se firma el token de servicio para availability (ADR-006).
+    jwt-secret: ${URBANMOVE_JWT_SECRET:}
+    jwt-expiration-seconds: 3600
+  # Bus de eventos (libs/messaging): consume VehicleBatteryLow; publica VehicleWithdrawnForMaintenance y
+  # VehicleReturnedToService.
+  messaging:
+    topic-arn: ${URBANMOVE_EVENTS_TOPIC_ARN:}
+    queue-url: ${URBANMOVE_EVENTS_QUEUE_URL:}
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
+  maintenance:
+    availability:
+      url: ${AVAILABILITY_URL:http://localhost:8083}
+      # Si availability no responde en este tiempo, withdraw, start y complete devuelven 503 y se pueden repetir.
+      timeout: 3s

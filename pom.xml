@@ -33,6 +33,7 @@
         <module>services/reservations</module>
         <module>services/rides</module>
         <module>services/history</module>
+        <module>services/maintenance-orders</module>
         <module>services/relocation-orders</module>
         <module>services/zones</module>
         <module>services/profiles</module>
