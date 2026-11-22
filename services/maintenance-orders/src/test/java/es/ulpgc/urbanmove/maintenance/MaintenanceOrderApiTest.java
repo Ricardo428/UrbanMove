@@ -300,6 +300,37 @@ class MaintenanceOrderApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void repeatingCompleteWhenTheVehicleIsAlreadyAvailableStillClosesTheOrder() {
+        String vehicle = newId("v");
+        String orderId = openWithdrawAndStart(vehicle, "operario-1");
+        // Una petición anterior dejó el recurso AVAILABLE y se cayó antes de guardar la orden: availability
+        // rechaza AVAILABLE -> READY_FOR_SERVICE, pero responde 200 a AVAILABLE -> AVAILABLE.
+        when(availability.changeState(eq(vehicle), eq("READY_FOR_SERVICE"), anyString()))
+                .thenReturn(new StateOutcome.Rejected("Transición no permitida: AVAILABLE → READY_FOR_SERVICE"));
+        when(availability.changeState(eq(vehicle), eq("AVAILABLE"), anyString()))
+                .thenReturn(new StateOutcome.Changed("zone-norte"));
+
+        ResponseEntity<Map> response = post(orderId, "complete", "operario-1", Role.MAINTENANCE, null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).containsEntry("status", "COMPLETED").containsEntry("zoneId", "zone-norte");
+        assertThat(eventCount("VehicleReturnedToService", orderId)).isEqualTo(1);
+    }
+
+    @Test
+    void ifAvailabilityRejectsBothStepsWhileCompletingTheAnswerIsAConflictAndTheOrderStaysInProgress() {
+        String vehicle = newId("v");
+        String orderId = openWithdrawAndStart(vehicle, "operario-1");
+        availabilityAnswers(new StateOutcome.Rejected("Transición no permitida: IN_USE → AVAILABLE"));
+
+        ResponseEntity<Map> response = post(orderId, "complete", "operario-1", Role.MAINTENANCE, null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(getOrder(orderId, Role.ADMIN).getBody()).containsEntry("status", "IN_PROGRESS");
+        assertThat(eventCount("VehicleReturnedToService", orderId)).isZero();
+    }
+
+    @Test
     void completingAnOrderThatWasNotStartedIsAConflictAndAnotherOperatorGetsForbidden() {
         String orderId = openAndWithdraw(newId("v"), "operario-1");
 

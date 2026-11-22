@@ -193,7 +193,7 @@ Pasos: `PUT /state` con `CHARGING` o `REPAIRING` y, después, `WITHDRAWN → IN_
 **Endpoint:** `POST /api/v1/maintenance-orders/{orderId}/complete` (rol `MAINTENANCE`) \
 **Descripción:** El operario termina la tarea y deja el recurso en la calle, en la misma zona en la que estaba. Solo puede completarla quien la retiró. Pasos:
 
-1. `PUT /api/v1/availability/{vehicleId}/state` con `READY_FOR_SERVICE` y, después, con `AVAILABLE`. La respuesta del segundo devuelve la `zoneId` del recurso.
+1. `PUT /api/v1/availability/{vehicleId}/state` con `READY_FOR_SERVICE` y, después, con `AVAILABLE`. La respuesta del segundo devuelve la `zoneId` del recurso. Si Availability rechaza el primero con `409` se sigue con el segundo: es lo que pasa al repetir la petición cuando el recurso ya está `AVAILABLE` (`READY_FOR_SERVICE` solo se alcanza desde `WITHDRAWN`, `CHARGING` o `REPAIRING`), y el `PUT` a `AVAILABLE` responde `200` si ya lo está y rechaza si el recurso está en otro estado.
 2. En una transacción: `IN_PROGRESS → COMPLETED` con `completed_at`, en un `UPDATE` condicional, y `VehicleReturnedToService` en el outbox con esa `zoneId`. Al salir de las órdenes activas, el recurso puede abrir otra orden si vuelve a dar un `VehicleBatteryLow`.
 
 Si falla a mitad, la orden sigue `IN_PROGRESS` y el operario repite la petición: el `PUT` es idempotente. El evento solo se emite cuando el recurso está `AVAILABLE`.

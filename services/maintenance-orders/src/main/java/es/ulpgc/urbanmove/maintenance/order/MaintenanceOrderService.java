@@ -140,7 +140,13 @@ public class MaintenanceOrderService {
         }
         requireStatus(order, OrderStatus.IN_PROGRESS);
 
-        changeVehicleState(order, "READY_FOR_SERVICE");
+        // Si una petición anterior ya dejó el recurso AVAILABLE y se cayó antes de guardar la orden, availability
+        // rechaza AVAILABLE → READY_FOR_SERVICE. Ese rechazo no corta: el PUT a AVAILABLE responde 200 con la zona
+        // si el recurso ya está ahí y, si no, es él quien rechaza.
+        StateOutcome ready = requestVehicleState(order, "READY_FOR_SERVICE");
+        if (!(ready instanceof StateOutcome.Rejected)) {
+            unwrapVehicleState(order, "READY_FOR_SERVICE", ready);
+        }
         String zoneId = changeVehicleState(order, "AVAILABLE");
         if (zoneId == null) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
@@ -185,8 +191,14 @@ public class MaintenanceOrderService {
 
     /** Pide el estado a availability y devuelve la zona del recurso; si no puede ser, corta con el error de la API. */
     private String changeVehicleState(MaintenanceOrder order, String state) {
-        StateOutcome outcome = availability.changeState(order.vehicleId(), state,
-                "Orden de mantenimiento " + order.publicId());
+        return unwrapVehicleState(order, state, requestVehicleState(order, state));
+    }
+
+    private StateOutcome requestVehicleState(MaintenanceOrder order, String state) {
+        return availability.changeState(order.vehicleId(), state, "Orden de mantenimiento " + order.publicId());
+    }
+
+    private String unwrapVehicleState(MaintenanceOrder order, String state, StateOutcome outcome) {
         return switch (outcome) {
             case StateOutcome.Changed changed -> changed.zoneId();
             case StateOutcome.NotFound notFound -> throw ApiException.conflict(
