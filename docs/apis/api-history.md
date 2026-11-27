@@ -82,11 +82,13 @@ Cola `urbanmove-history`. Cada evento se guarda una sola vez: `libs/messaging` a
 | `ReservationExpired` | Reserva caducada | Implementado |
 | `RideStarted` | Viaje iniciado (con su `reservationId` si lo hay) | Implementado |
 | `RideFinished` | Viaje finalizado (zonas, duración y coste) | Implementado |
-| `VehicleBatteryLow` | Batería baja detectada (vehículo) | Cuando exista su productor |
-| `VehicleWithdrawnForMaintenance` | Retirada por mantenimiento (vehículo) | Cuando exista su productor |
-| `VehicleReturnedToService` | Vuelta al servicio (vehículo) | Cuando exista su productor |
-| `RelocationOrderCreated` | Orden de recolocación (sin vehículo) | Cuando exista su productor |
-| `RelocationOrderCompleted` | Una entrada por cada vehículo recolocado | Cuando exista su productor |
+| `VehicleBatteryLow` | Batería baja detectada (vehículo) | Handler listo; llega cuando exista la Lambda de detección (ADR-011) |
+| `VehicleWithdrawnForMaintenance` | Retirada por mantenimiento (vehículo) | Implementado |
+| `VehicleReturnedToService` | Vuelta al servicio (vehículo) | Implementado |
+| `RelocationOrderCreated` | Orden de recolocación (sin vehículo) | Implementado |
+| `RelocationOrderCompleted` | Una entrada por cada vehículo recolocado | Implementado |
+
+Los eventos de vehículo no tienen usuario: salen en `GET /history/vehicles/{id}` y no en `/me`. `RelocationOrderCreated` no tiene usuario ni vehículo, así que se guarda como registro pero ninguno de los dos endpoints la devuelve. Como `RelocationOrderCompleted` da varias filas con el mismo `eventId`, la clave de la tabla es un `id` propio y la red de seguridad contra duplicados es un índice único sobre `(event_id, vehicle_id)` con `NULLS NOT DISTINCT` (migración `V2`).
 
 Solo llega a History lo que se publica como evento. Zones, Availability y Analytics no publican, y `UserRegistered`, `UserDeactivated` y `VehiclePurchased` se publican pero History no los consume (ver [events.md](../events.md)).
 
