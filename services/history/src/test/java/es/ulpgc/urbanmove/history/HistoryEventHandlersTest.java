@@ -78,7 +78,8 @@ class HistoryEventHandlersTest extends AbstractIntegrationTest {
 
     @Test
     void vehicleReservedKeepsTheIdsInColumnsAndTheRestInDetails() {
-        VehicleReserved payload = new VehicleReserved("res-1", "v-1", "u-1", "zone-centro", WHEN.plusSeconds(300));
+        VehicleReserved payload = new VehicleReserved("res-1", "v-1", VehicleType.BIKE, "u-1", "zone-centro",
+                WHEN.plusSeconds(300));
         EventEnvelope event = envelope(payload, WHEN);
 
         vehicleReserved.handle(payload, event);
@@ -89,7 +90,7 @@ class HistoryEventHandlersTest extends AbstractIntegrationTest {
                 .containsEntry("vehicle_id", "v-1")
                 .containsEntry("reservation_id", "res-1")
                 .containsEntry("ride_id", null);
-        assertThat(row.get("details").toString()).contains("zone-centro").doesNotContain("res-1", "u-1");
+        assertThat(row.get("details").toString()).contains("zone-centro", "BIKE").doesNotContain("res-1", "u-1");
     }
 
     @Test
@@ -117,7 +118,7 @@ class HistoryEventHandlersTest extends AbstractIntegrationTest {
 
     @Test
     void rideStartedWithoutReservationLeavesReservationIdEmpty() {
-        RideStarted payload = new RideStarted("ride-4", "v-4", "u-4", null, "zone-centro", WHEN);
+        RideStarted payload = new RideStarted("ride-4", "v-4", VehicleType.BIKE, "u-4", null, "zone-centro", WHEN);
         EventEnvelope event = envelope(payload, WHEN);
 
         rideStarted.handle(payload, event);
@@ -236,7 +237,7 @@ class HistoryEventHandlersTest extends AbstractIntegrationTest {
     @Test
     void theSameEventTwiceIsRejectedByTheUniqueIndex() {
         // Red de seguridad: si llegara hasta aquí un duplicado, falla (y SQS lo reintentaría) en vez de duplicar.
-        VehicleReserved payload = new VehicleReserved("res-6", "v-6", "u-6", "zone-centro", WHEN);
+        VehicleReserved payload = new VehicleReserved("res-6", "v-6", VehicleType.BIKE, "u-6", "zone-centro", WHEN);
         EventEnvelope event = envelope(payload, WHEN);
         vehicleReserved.handle(payload, event);
 

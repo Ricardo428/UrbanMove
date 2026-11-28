@@ -76,6 +76,7 @@ Todas las peticiones llevan `Authorization: Bearer <token_jwt>`.
 ```json
 {
   "vehicleId": "v-0042",
+  "vehicleType": "SCOOTER",
   "status": "RESERVED",
   "reservationId": "res-7731",
   "zoneId": "zone-centro"
@@ -111,6 +112,7 @@ Todas las peticiones llevan `Authorization: Bearer <token_jwt>`.
 ```json
 {
   "vehicleId": "v-0042",
+  "vehicleType": "SCOOTER",
   "status": "IN_USE",
   "zoneId": "zone-centro"
 }
@@ -143,6 +145,7 @@ Todas las peticiones llevan `Authorization: Bearer <token_jwt>`.
 ```json
 {
   "vehicleId": "v-0042",
+  "vehicleType": "SCOOTER",
   "status": "WITHDRAWN",
   "zoneId": "zone-norte"
 }

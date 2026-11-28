@@ -40,5 +40,6 @@
         <module>services/analytics</module>
         <module>lambdas/expiration</module>
         <module>lambdas/ingestion</module>
+        <module>lambdas/relocation</module>
     </modules>
 </project>

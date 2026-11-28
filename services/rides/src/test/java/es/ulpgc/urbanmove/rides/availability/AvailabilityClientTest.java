@@ -7,6 +7,7 @@ import com.sun.net.httpserver.HttpServer;
 import es.ulpgc.urbanmove.common.security.AuthenticatedUser;
 import es.ulpgc.urbanmove.common.security.JwtTokenService;
 import es.ulpgc.urbanmove.common.security.Role;
+import es.ulpgc.urbanmove.events.VehicleType;
 import es.ulpgc.urbanmove.rides.RidesProperties;
 import es.ulpgc.urbanmove.rides.RidesServiceAccount;
 import java.io.IOException;
@@ -51,14 +52,14 @@ class AvailabilityClientTest {
     }
 
     @Test
-    void aStartedVehicleReturnsItsZoneAndTheCallUsesAnAdminServiceToken() {
+    void aStartedVehicleReturnsItsZoneAndTypeAndTheCallUsesAnAdminServiceToken() {
         answer.set(new Answer(200, """
-                {"vehicleId":"v-0042","status":"IN_USE","zoneId":"zone-centro"}
+                {"vehicleId":"v-0042","vehicleType":"SCOOTER","status":"IN_USE","zoneId":"zone-centro"}
                 """, Duration.ZERO));
 
         StartOutcome outcome = client.start("v-0042", "ride-5501", "res-7731");
 
-        assertThat(outcome).isEqualTo(new StartOutcome.Started("zone-centro"));
+        assertThat(outcome).isEqualTo(new StartOutcome.Started("zone-centro", VehicleType.SCOOTER));
         assertThat(receivedPath.get()).isEqualTo("/api/v1/availability/v-0042/start");
         assertThat(receivedBody.get()).contains("\"rideId\":\"ride-5501\"", "\"reservationId\":\"res-7731\"");
         AuthenticatedUser caller = tokens.parse(receivedAuthorization.get().substring("Bearer ".length()));
@@ -68,10 +69,10 @@ class AvailabilityClientTest {
     @Test
     void aRideWithoutReservationSendsNoReservationId() {
         answer.set(new Answer(200, """
-                {"vehicleId":"v-0042","status":"IN_USE","zoneId":"zone-centro"}
+                {"vehicleId":"v-0042","vehicleType":"BIKE","status":"IN_USE","zoneId":"zone-centro"}
                 """, Duration.ZERO));
 
-        assertThat(client.start("v-0042", "ride-5501", null)).isEqualTo(new StartOutcome.Started("zone-centro"));
+        assertThat(client.start("v-0042", "ride-5501", null)).isEqualTo(new StartOutcome.Started("zone-centro", VehicleType.BIKE));
         assertThat(receivedBody.get()).doesNotContain("res-");
     }
 

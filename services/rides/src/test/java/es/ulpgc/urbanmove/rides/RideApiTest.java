@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import es.ulpgc.urbanmove.common.security.Role;
+import es.ulpgc.urbanmove.events.VehicleType;
 import es.ulpgc.urbanmove.rides.availability.StartOutcome;
 import es.ulpgc.urbanmove.rides.reservations.ReservationLookup;
 import es.ulpgc.urbanmove.rides.reservations.ReservationSnapshot;
@@ -65,6 +66,7 @@ class RideApiTest extends AbstractIntegrationTest {
                 .containsEntry("event_type", "RideStarted")
                 .containsEntry("user_id", user)
                 .containsEntry("origin_zone_id", "zone-centro")
+                .containsEntry("vehicle_type", "SCOOTER")
                 .containsEntry("reservation_id", null));
     }
 
@@ -180,7 +182,7 @@ class RideApiTest extends AbstractIntegrationTest {
         String vehicle = "v-" + UUID.randomUUID();
         AtomicBoolean availabilityUp = new AtomicBoolean(false);
         when(availability.start(eq(vehicle), anyString(), any())).thenAnswer(call -> availabilityUp.get()
-                ? new StartOutcome.Started("zone-centro")
+                ? new StartOutcome.Started("zone-centro", VehicleType.SCOOTER)
                 : new StartOutcome.Unreachable());
 
         assertThat(start(user, vehicle, null).getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
@@ -361,7 +363,7 @@ class RideApiTest extends AbstractIntegrationTest {
 
     private String startableVehicle(String zone) {
         String vehicle = "v-" + UUID.randomUUID();
-        when(availability.start(eq(vehicle), anyString(), any())).thenReturn(new StartOutcome.Started(zone));
+        when(availability.start(eq(vehicle), anyString(), any())).thenReturn(new StartOutcome.Started(zone, VehicleType.SCOOTER));
         return vehicle;
     }
 
@@ -426,6 +428,7 @@ class RideApiTest extends AbstractIntegrationTest {
                         SELECT event_type,
                                body -> 'payload' ->> 'userId' AS user_id,
                                body -> 'payload' ->> 'originZoneId' AS origin_zone_id,
+                               body -> 'payload' ->> 'vehicleType' AS vehicle_type,
                                body -> 'payload' ->> 'reservationId' AS reservation_id
                           FROM outbox_events WHERE body -> 'payload' ->> 'rideId' = ?
                         """,

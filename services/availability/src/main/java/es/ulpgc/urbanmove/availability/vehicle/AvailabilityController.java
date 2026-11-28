@@ -44,7 +44,8 @@ public class AvailabilityController {
     @PreAuthorize("hasRole('ADMIN')")
     public ReserveResponse reserve(@PathVariable String vehicleId, @Valid @RequestBody ReserveRequest request) {
         VehicleState state = availability.reserve(vehicleId, request.reservationId());
-        return new ReserveResponse(state.vehicleId(), state.status(), state.reservationId(), state.zoneId());
+        return new ReserveResponse(state.vehicleId(), state.vehicleType(), state.status(), state.reservationId(),
+                state.zoneId());
     }
 
     @PostMapping("/{vehicleId}/start")
@@ -84,13 +85,16 @@ public class AvailabilityController {
         }
     }
 
-    public record ReserveResponse(String vehicleId, VehicleStatus status, String reservationId, String zoneId) {
+    /** vehicleType lo copia Reservations en VehicleReserved, para contar la demanda por tipo. */
+    public record ReserveResponse(String vehicleId, VehicleType vehicleType, VehicleStatus status,
+            String reservationId, String zoneId) {
     }
 
-    public record StateResponse(String vehicleId, VehicleStatus status, String zoneId) {
+    /** vehicleType lo copia Rides en RideStarted, para contar la demanda por tipo. */
+    public record StateResponse(String vehicleId, VehicleType vehicleType, VehicleStatus status, String zoneId) {
 
         static StateResponse of(VehicleState state) {
-            return new StateResponse(state.vehicleId(), state.status(), state.zoneId());
+            return new StateResponse(state.vehicleId(), state.vehicleType(), state.status(), state.zoneId());
         }
     }
 }

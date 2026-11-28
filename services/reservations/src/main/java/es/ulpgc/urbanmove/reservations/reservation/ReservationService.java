@@ -68,8 +68,8 @@ public class ReservationService {
             case ReserveOutcome.Reserved reserved -> transaction.execute(status -> {
                 reservations.setZone(id, reserved.zoneId());
                 Reservation reservation = get(id);
-                events.publish(new VehicleReserved(reservationId, vehicleId, user.userId(), reserved.zoneId(),
-                        reservation.expiresAt()));
+                events.publish(new VehicleReserved(reservationId, vehicleId, reserved.vehicleType(), user.userId(),
+                        reserved.zoneId(), reservation.expiresAt()));
                 return reservation;
             });
             case ReserveOutcome.NotAvailable notAvailable -> {

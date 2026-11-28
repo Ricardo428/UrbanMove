@@ -2,6 +2,7 @@ package es.ulpgc.urbanmove.reservations.availability;
 
 import es.ulpgc.urbanmove.common.client.ServiceRestClients;
 import es.ulpgc.urbanmove.common.security.JwtTokenService;
+import es.ulpgc.urbanmove.events.VehicleType;
 import es.ulpgc.urbanmove.reservations.ReservationsProperties;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -41,7 +42,8 @@ public class AvailabilityClient {
                     .exchange((request, response) -> {
                         int status = response.getStatusCode().value();
                         if (status == HttpStatus.OK.value()) {
-                            return new ReserveOutcome.Reserved(response.bodyTo(ReserveResponse.class).zoneId());
+                            ReserveResponse reserved = response.bodyTo(ReserveResponse.class);
+                            return new ReserveOutcome.Reserved(reserved.zoneId(), reserved.vehicleType());
                         }
                         return toFailure(vehicleId, status);
                     });
@@ -63,7 +65,8 @@ public class AvailabilityClient {
         return new ReserveOutcome.Unreachable();
     }
 
-    /** Lo que responde availability; solo interesa la zona. */
-    record ReserveResponse(String vehicleId, String status, String reservationId, String zoneId) {
+    /** Lo que responde availability; solo interesan la zona y el tipo, que van en VehicleReserved. */
+    record ReserveResponse(String vehicleId, VehicleType vehicleType, String status, String reservationId,
+            String zoneId) {
     }
 }

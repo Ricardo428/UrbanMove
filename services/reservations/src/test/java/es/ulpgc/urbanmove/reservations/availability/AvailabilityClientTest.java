@@ -7,6 +7,7 @@ import com.sun.net.httpserver.HttpServer;
 import es.ulpgc.urbanmove.common.security.AuthenticatedUser;
 import es.ulpgc.urbanmove.common.security.JwtTokenService;
 import es.ulpgc.urbanmove.common.security.Role;
+import es.ulpgc.urbanmove.events.VehicleType;
 import es.ulpgc.urbanmove.reservations.ReservationsProperties;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -50,14 +51,15 @@ class AvailabilityClientTest {
     }
 
     @Test
-    void aReservedVehicleReturnsItsZoneAndTheCallUsesAnAdminServiceToken() {
+    void aReservedVehicleReturnsItsZoneAndTypeAndTheCallUsesAnAdminServiceToken() {
         answer.set(new Answer(200, """
-                {"vehicleId":"v-0042","status":"RESERVED","reservationId":"res-1","zoneId":"zone-centro"}
+                {"vehicleId":"v-0042","vehicleType":"SCOOTER","status":"RESERVED","reservationId":"res-1",
+                 "zoneId":"zone-centro"}
                 """, Duration.ZERO));
 
         ReserveOutcome outcome = client.reserve("v-0042", "res-1");
 
-        assertThat(outcome).isEqualTo(new ReserveOutcome.Reserved("zone-centro"));
+        assertThat(outcome).isEqualTo(new ReserveOutcome.Reserved("zone-centro", VehicleType.SCOOTER));
         assertThat(receivedBody.get()).contains("\"reservationId\":\"res-1\"");
         AuthenticatedUser caller = tokens.parse(receivedAuthorization.get().substring("Bearer ".length()));
         assertThat(caller).isEqualTo(new AuthenticatedUser(AvailabilityClient.SERVICE_ID, Role.ADMIN));

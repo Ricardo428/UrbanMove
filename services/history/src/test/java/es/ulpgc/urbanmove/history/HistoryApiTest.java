@@ -8,6 +8,7 @@ import es.ulpgc.urbanmove.events.EventEnvelope;
 import es.ulpgc.urbanmove.events.EventJson;
 import es.ulpgc.urbanmove.events.EventPayload;
 import es.ulpgc.urbanmove.events.EventType;
+import es.ulpgc.urbanmove.events.VehicleType;
 import es.ulpgc.urbanmove.events.payload.ReservationCancelled;
 import es.ulpgc.urbanmove.events.payload.VehicleReserved;
 import es.ulpgc.urbanmove.messaging.EventHandler;
@@ -122,7 +123,7 @@ class HistoryApiTest extends AbstractIntegrationTest {
     }
 
     private void reserved(String user, String vehicle, Instant when) {
-        VehicleReserved payload = new VehicleReserved(newId("res"), vehicle, user, "zone-centro", when);
+        VehicleReserved payload = new VehicleReserved(newId("res"), vehicle, VehicleType.BIKE, user, "zone-centro", when);
         vehicleReserved.handle(payload, envelope(payload, when));
     }
 

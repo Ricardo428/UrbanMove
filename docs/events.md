@@ -111,6 +111,7 @@ Los ejemplos muestran el evento completo. Todos los identificadores son de ejemp
   "payload": {
     "reservationId": "res-7731",
     "vehicleId": "v-0042",
+    "vehicleType": "SCOOTER",
     "userId": "u-1001",
     "zoneId": "zone-centro",
     "expiresAt": "2026-10-13T10:20:00Z"
@@ -166,6 +167,7 @@ Los ejemplos muestran el evento completo. Todos los identificadores son de ejemp
   "payload": {
     "rideId": "ride-5520",
     "vehicleId": "v-0042",
+    "vehicleType": "SCOOTER",
     "userId": "u-1001",
     "reservationId": "res-7731",
     "originZoneId": "zone-centro",
@@ -174,6 +176,8 @@ Los ejemplos muestran el evento completo. Todos los identificadores son de ejemp
 }
 ```
 `reservationId` es `null` si el usuario inicia el viaje sin reserva previa.
+
+`vehicleType` (en `VehicleReserved` y `RideStarted`) se añadió después, para contar la demanda por tipo de vehículo. Los eventos anteriores no lo llevan y llegan con `null`.
 
 ### RideFinished
 ```json

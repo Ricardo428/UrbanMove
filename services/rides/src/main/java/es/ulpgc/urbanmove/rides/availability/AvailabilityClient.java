@@ -2,6 +2,7 @@ package es.ulpgc.urbanmove.rides.availability;
 
 import es.ulpgc.urbanmove.common.client.ServiceRestClients;
 import es.ulpgc.urbanmove.common.security.JwtTokenService;
+import es.ulpgc.urbanmove.events.VehicleType;
 import es.ulpgc.urbanmove.rides.RidesProperties;
 import es.ulpgc.urbanmove.rides.RidesServiceAccount;
 import org.slf4j.Logger;
@@ -39,7 +40,8 @@ public class AvailabilityClient {
                     .exchange((request, response) -> {
                         int status = response.getStatusCode().value();
                         if (status == HttpStatus.OK.value()) {
-                            return new StartOutcome.Started(response.bodyTo(StartResponse.class).zoneId());
+                            StartResponse started = response.bodyTo(StartResponse.class);
+                            return new StartOutcome.Started(started.zoneId(), started.vehicleType());
                         }
                         return toFailure(vehicleId, status);
                     });
@@ -65,7 +67,7 @@ public class AvailabilityClient {
     record StartRequest(String rideId, String reservationId) {
     }
 
-    /** Lo que responde availability; solo interesa la zona. */
-    record StartResponse(String vehicleId, String status, String zoneId) {
+    /** Lo que responde availability; solo interesan la zona y el tipo, que van en RideStarted. */
+    record StartResponse(String vehicleId, VehicleType vehicleType, String status, String zoneId) {
     }
 }

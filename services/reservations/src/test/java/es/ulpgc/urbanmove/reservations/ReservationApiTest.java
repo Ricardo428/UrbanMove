@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import es.ulpgc.urbanmove.common.security.Role;
 import es.ulpgc.urbanmove.events.EventEnvelope;
+import es.ulpgc.urbanmove.events.VehicleType;
 import es.ulpgc.urbanmove.events.payload.RideStarted;
 import es.ulpgc.urbanmove.messaging.EventHandler;
 import es.ulpgc.urbanmove.reservations.availability.ReserveOutcome;
@@ -55,7 +56,8 @@ class ReservationApiTest extends AbstractIntegrationTest {
         assertThat(outboxEvents(reservationId)).singleElement().satisfies(event -> assertThat(event)
                 .containsEntry("event_type", "VehicleReserved")
                 .containsEntry("user_id", user)
-                .containsEntry("zone_id", "zone-centro"));
+                .containsEntry("zone_id", "zone-centro")
+                .containsEntry("vehicle_type", "SCOOTER"));
     }
 
     @Test
@@ -255,7 +257,8 @@ class ReservationApiTest extends AbstractIntegrationTest {
     void rideStartedMarksTheReservationAsUsedSoItNoLongerExpires() {
         String owner = newUser();
         String reservationId = reservationOf(owner);
-        RideStarted event = new RideStarted("ride-1", "v-1", owner, reservationId, "zone-centro", Instant.now());
+        RideStarted event = new RideStarted("ride-1", "v-1", VehicleType.BIKE, owner, reservationId, "zone-centro",
+                Instant.now());
 
         rideStarted.handle(event, EventEnvelope.of("rides-service", event, null));
         clock.advance(Duration.ofMinutes(30));
@@ -273,7 +276,7 @@ class ReservationApiTest extends AbstractIntegrationTest {
 
     private String availableVehicle(String zone) {
         String vehicle = "v-" + UUID.randomUUID();
-        when(availability.reserve(eq(vehicle), anyString())).thenReturn(new ReserveOutcome.Reserved(zone));
+        when(availability.reserve(eq(vehicle), anyString())).thenReturn(new ReserveOutcome.Reserved(zone, VehicleType.SCOOTER));
         return vehicle;
     }
 
@@ -300,7 +303,8 @@ class ReservationApiTest extends AbstractIntegrationTest {
     private List<Map<String, Object>> outboxEvents(String reservationId) {
         return jdbc.queryForList("""
                         SELECT event_type, body -> 'payload' ->> 'userId' AS user_id,
-                               body -> 'payload' ->> 'zoneId' AS zone_id
+                               body -> 'payload' ->> 'zoneId' AS zone_id,
+                               body -> 'payload' ->> 'vehicleType' AS vehicle_type
                           FROM outbox_events WHERE body -> 'payload' ->> 'reservationId' = ?
                         """,
                 reservationId);

@@ -117,7 +117,8 @@ class AvailabilityApiTest extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).containsEntry("status", "RESERVED")
                 .containsEntry("reservationId", "res-1")
-                .containsEntry("zoneId", "zone-centro");
+                .containsEntry("zoneId", "zone-centro")
+                .containsEntry("vehicleType", "SCOOTER");
     }
 
     @Test
@@ -179,7 +180,9 @@ class AvailabilityApiTest extends AbstractIntegrationTest {
         ResponseEntity<Map> response = start(vehicle, "ride-1", "res-1");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).containsEntry("status", "IN_USE").containsEntry("zoneId", "zone-centro");
+        assertThat(response.getBody()).containsEntry("status", "IN_USE")
+                .containsEntry("zoneId", "zone-centro")
+                .containsEntry("vehicleType", "SCOOTER");
         assertThat(start(vehicle, "ride-1", "res-1").getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 

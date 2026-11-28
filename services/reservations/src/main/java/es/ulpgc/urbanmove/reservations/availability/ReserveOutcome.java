@@ -1,10 +1,12 @@
 package es.ulpgc.urbanmove.reservations.availability;
 
+import es.ulpgc.urbanmove.events.VehicleType;
+
 /** Lo que puede pasar al pedir a availability que reserve un vehículo (ADR-002). */
 public sealed interface ReserveOutcome {
 
-    /** El vehículo quedó RESERVED para esta reserva. zoneId es la zona en la que está. */
-    record Reserved(String zoneId) implements ReserveOutcome {
+    /** El vehículo quedó RESERVED para esta reserva. zoneId es la zona en la que está; vehicleType, su tipo. */
+    record Reserved(String zoneId, VehicleType vehicleType) implements ReserveOutcome {
     }
 
     /** Availability no conoce el vehículo (404). */

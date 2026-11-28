@@ -78,8 +78,8 @@ public class RideService {
         return switch (outcome) {
             case StartOutcome.Started started -> transaction.execute(status -> {
                 rides.markInProgress(id, started.zoneId());
-                events.publish(new RideStarted(rideId, vehicleId, user.userId(), reservationId, started.zoneId(),
-                        startTime));
+                events.publish(new RideStarted(rideId, vehicleId, started.vehicleType(), user.userId(), reservationId,
+                        started.zoneId(), startTime));
                 return get(id);
             });
             case StartOutcome.NotAvailable notAvailable -> {
